@@ -1,23 +1,13 @@
 # 安装与使用教程
 
-本文适用于 Mytimes TTS `0.1.3`。
+当前公开版本支持 64 位 Windows。
 
-## 一、选择正确版本
+## 一、选择正确文件
 
-### Windows
+- 推荐：文件名包含 `Portable` 和 `x64` 的 EXE，无需安装，下载后直接运行。
+- 备用：文件名包含 `x64` 的 Windows ZIP，先解压到普通文件夹，再运行其中的 `Mytimes TTS.exe`。
 
-- 推荐：`Mytimes-TTS-Portable-0.1.3-x64.exe`，无需安装，双击即可运行。
-- 备用：`Mytimes-TTS-0.1.3-x64.zip`，解压到普通文件夹后运行 `Mytimes TTS.exe`。
-
-不要直接在 ZIP 压缩包预览窗口里运行程序。
-
-### macOS
-
-- Apple M1、M2、M3、M4 等 Apple 芯片：选择文件名带 `arm64` 的 DMG。
-- Intel 处理器 Mac：选择文件名带 `x64` 的 DMG。
-- ZIP 是备用形式；优先使用 DMG，把 Mytimes TTS 拖到“应用程序”。
-
-当前 `0.1.3` macOS 包是未签名的公司内部测试构建。首次打开时，如果 macOS 阻止启动，可在 Finder 中按住 Control 点击应用，选择“打开”，再确认一次。不要从不可信来源下载，也不要使用关闭系统安全保护的命令。
+不要直接在 ZIP 压缩包预览窗口里运行程序。macOS 和 Android 尚未作为公开下载平台提供。
 
 ## 二、获取并填写 MiMo API Key
 
@@ -27,7 +17,7 @@
 4. 保持对应的官方 Base URL，或填写经过确认的兼容服务地址。
 5. 输入 API Key，点击“保存设置”，再点击“验证连接”。
 
-API Key 不在安装包内。每位用户首次使用时自行填写，应用会通过 Windows DPAPI 或 macOS Keychain 对应的系统安全存储能力加密后保存在当前电脑。
+API Key 不在安装包内。每位用户首次使用时自行填写，应用会通过 Windows DPAPI 对应的系统安全存储能力加密后保存在当前电脑。
 
 ## 三、生成语音
 
@@ -65,7 +55,7 @@ API Key 不在安装包内。每位用户首次使用时自行填写，应用会
 - 在“生成历史”中删除单条记录，会删除应用保存的对应音频副本。
 - “清空历史”会清理应用保存的历史记录和对应 WAV。
 - 在“设置”中清空 API Key 并保存，可移除应用保存的 Key。
-- 卸载或删除 Portable 程序不一定自动删除 Electron 用户数据目录。
+- 删除 Portable 程序不一定自动删除 Electron 用户数据目录。
 
 另存到其他目录的音频和原始参考音频不会被应用的历史清理功能删除。
 
@@ -73,21 +63,18 @@ API Key 不在安装包内。每位用户首次使用时自行填写，应用会
 
 ### 验证连接失败
 
-先确认服务类型、Base URL 和 Key 是否匹配，再检查网络、额度与 MiMo 控制台状态。完整排查见 [MiMo API Key 教程](MIMO_API_KEY_GUIDE.md)。
+确认服务类型、Base URL 和 Key 相互匹配，再检查网络、额度与 MiMo 控制台状态。完整排查见 [MiMo API Key 教程](MIMO_API_KEY_GUIDE.md)。
 
 ### Windows 出现 SmartScreen
 
-当前内部测试包尚未做 Windows 代码签名。确认文件来自公司官方仓库并核对 SHA-256 后再运行。公司对外发布前应补充正式签名。
+当前构建可能尚未完成 Windows 代码签名。确认文件来自本仓库 Releases 后再运行；来源不明的文件不要打开。
 
-### macOS 提示无法验证开发者
+### Portable 与 ZIP 有什么区别
 
-当前内部测试包尚未完成 Developer ID 签名和 Apple 公证。确认文件来自公司官方仓库并核对 SHA-256 后，使用 Finder 的“Control 点击 → 打开”。公开分发时应换成已签名、公证版本。
+Portable EXE 下载后可直接运行；ZIP 需要先完整解压。两者功能相同，优先选择 Portable EXE。
 
-### 应该下载 arm64 还是 x64
+### 为什么没有 macOS 下载
 
-打开苹果菜单 →“关于本机”：
-
-- 显示“芯片 Apple …”：下载 arm64。
-- 显示“处理器 Intel …”：下载 x64。
+macOS 仍处于未来适配和验证阶段，尚未作为当前公开支持平台发布。请不要把自动构建产生的预览文件当作正式版本分发。
 
 [返回文档中心](README.md)

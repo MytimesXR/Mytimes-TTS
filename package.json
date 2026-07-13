@@ -1,7 +1,7 @@
 {
   "name": "myt-tts-winui",
   "version": "0.1.3",
-  "description": "MytimesXR desktop client for Xiaomi MiMo TTS on Windows and macOS",
+  "description": "MytimesXR Windows desktop client for Xiaomi MiMo TTS",
   "author": "MytimesXR",
   "private": true,
   "main": "electron/main.js",
@@ -10,9 +10,9 @@
     "check:public": "node scripts/audit-public-package.js",
     "check:packaged": "node scripts/audit-packaged-app.js release",
     "pack": "electron-builder --win --x64 --dir",
-    "dist": "electron-builder --win portable zip --x64",
+    "dist": "electron-builder --win portable zip --x64 --publish never",
     "pack:mac": "electron-builder --mac --dir --x64 --arm64",
-    "dist:mac": "electron-builder --mac dmg zip --x64 --arm64"
+    "dist:mac": "electron-builder --mac dmg zip --x64 --arm64 --publish never"
   },
   "devDependencies": {
     "electron": "43.1.0",

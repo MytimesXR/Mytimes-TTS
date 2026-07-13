@@ -1,51 +1,41 @@
-# macOS 当前状态与 Android 迁移评估
+# macOS 与 Android 跨平台路线
 
-本文对应 Mytimes TTS `0.1.3`。
+## 当前结论
 
-## 结论
+- **Windows**：当前公开支持平台，提供 Portable EXE 与 ZIP。
+- **macOS**：Electron 代码具备初步适配和双架构预览构建配置，但尚未完成真机回归、签名与公证，因此不属于当前公开下载范围。
+- **Android**：Electron 不能直接导出 APK。建议复用 Web 页面和业务接口设计，通过 Capacitor 建立 Android 原生容器。
 
-- **Windows**：Portable EXE 与 ZIP 已是当前本机验证基线。
-- **macOS**：继续使用 Electron，无需重写产品。平台适配、图标、x64/arm64 打包配置和 GitHub macOS 构建流程已经完成；上传仓库后可生成双架构 DMG/ZIP。
-- **Android**：不能从 Electron 直接导出 APK。推荐保留 HTML/CSS/JavaScript 页面与业务接口设计，使用 Capacitor 建立 Android 原生容器，重写安全存储、文件、网络和生命周期桥接。
+## macOS 已具备的开发基础
 
-## 一、macOS 0.1.3 已完成内容
+- 使用系统红黄绿窗口按钮、应用菜单和平台感知文案。
+- 生成快捷键兼容 Ctrl 与 Command。
+- “在文件夹中显示”可适配为“在 Finder 中显示”。
+- Electron `safeStorage` 可在 macOS 对接 Keychain。
+- electron-builder 已配置 Apple Silicon `arm64` 与 Intel `x64` 的 DMG/ZIP 预览构建。
+- GitHub Actions 可在 `macos-15` 主机上手动构建和审计预览文件。
+- 打包白名单不会收录设置、历史、用户音频或 API Key。
 
-- macOS 使用系统红黄绿窗口按钮，Windows 继续使用当前自绘标题栏。
-- 增加标准 macOS 应用菜单、设置快捷键和平台感知文案。
-- 生成快捷键同时支持 Ctrl 与 Command。
-- “在文件夹中显示”在 Mac 上显示为“在 Finder 中显示”。
-- API Key 继续使用 Electron `safeStorage`，macOS 对应 Keychain。
-- 增加跨平台 SVG 应用图标。
-- electron-builder 配置同时输出 Apple Silicon `arm64` 与 Intel `x64` 的 DMG/ZIP。
-- GitHub Actions 在 `macos-15` 主机原生安装依赖、检查公开源码、构建并审计应用包。
-- 已打包文件采用严格白名单，避免设置、历史、音频和 Key 进入应用。
+这些内容只代表开发基础，不代表 Mac 版已经通过发布验收。
 
-## 二、macOS 仍需完成的发布验证
+## macOS 正式支持前必须完成
 
-当前 Windows 环境不能原生验证 macOS 应用，所以下列工作必须在 GitHub macOS Actions 和真实 Mac 上完成：
+1. 在 GitHub Actions 手动运行 **Build macOS Preview**，确认双架构预览文件与 SHA-256 清单生成。
+2. 至少在一台 Apple Silicon Mac 上验证启动、设置、Key 保存、生成、波形播放、拖动定位、保存和 Finder 定位。
+3. 如继续支持 Intel Mac，在 Intel 真机或可靠测试环境完成相同回归。
+4. 使用 Apple Developer ID 完成签名、公证与 stapling。
+5. 将证书和密码仅放入受保护的 GitHub Actions Secrets。
+6. 完成隐私、安装、故障排查和下载文档后，再把 macOS 加入公开 Release。
 
-1. 上传干净源码并运行 **Build macOS**。
-2. 确认 arm64/x64 两套 DMG、ZIP 和 SHA-256 清单均生成。
-3. 至少在一台 Apple Silicon Mac 上验证启动、设置、Key 保存、生成、波形播放、拖动定位、保存和 Finder 定位。
-4. 若公司仍需支持 Intel Mac，应在 Intel 真机或可靠的 Intel 测试环境做相同回归。
-5. 对外发布前配置 Apple Developer ID 签名、公证与 stapling。
-6. 签名凭据只放 GitHub Actions Secrets，并验证最终签名链。
+当前手动预览工作流明确禁止 electron-builder 自动发布。Actions 生成的 Artifact 仅供开发验证，不应当作正式 Mac 下载版本。
 
-electron-builder 明确说明：不要期望在一个操作系统上可靠构建全部平台，macOS 签名也只能在 macOS 上进行。因此本项目用 macOS CI 生成 Mac 包，而不是在 Windows 上“转出”DMG。
+## 为什么 Android 不能直接转换
 
-## 三、macOS 支持范围
+Electron 面向 Windows、macOS 和 Linux 桌面环境。Android 的 WebView、权限、文件系统、安全存储、音频焦点、应用生命周期、签名和商店格式不同，electron-builder 没有 APK/AAB 输出目标。
 
-当前构建配置的最低系统版本为 macOS 12。正式发布前必须在目标系统上实测；以后升级 Electron 大版本时，要重新核对 Electron 的最低 macOS 要求，不应只看本项目配置。
+Capacitor 能保留大部分 HTML/CSS/JavaScript 页面，并通过 Android 原生插件调用 Kotlin/Java 能力，适合作为本项目的移动端容器。
 
-当前内部测试包未签名。它适合公司内部验证，不等同于可直接面向公众发布的正式 Mac 软件。
-
-## 四、为什么 Android 不能直接转换
-
-Electron 面向 Windows、macOS 和 Linux 桌面环境。Android 的 WebView、权限、文件系统、安全存储、音频焦点、应用生命周期、签名和商店格式不同，electron-builder 没有 APK/AAB 目标。
-
-Capacitor 可以保留 Web 页面，同时通过 Android 原生插件调用 Kotlin/Java 能力，适合作为当前项目的移动端容器。
-
-## 五、Android 可复用与需重写范围
+## Android 可复用范围评估
 
 | 模块 | 预计复用 | 说明 |
 |---|---:|---|
@@ -57,13 +47,13 @@ Capacitor 可以保留 Web 页面，同时通过 Android 原生插件调用 Kotl
 | Key、历史和文件 | 30%–50% | 改用 Android Keystore、私有目录和系统文件选择器 |
 | 整体 | 45%–60% | 不是从零重写，也不是一键转换 |
 
-## 六、推荐的代码结构
+## 推荐代码结构
 
 ```text
 shared/                        TTS 请求、参数校验、错误翻译
 app/                           响应式页面、波形与业务交互
-platforms/electron/            Windows/macOS 的 window.mytApp
-platforms/capacitor-android/   Android 的 window.mytApp
+platforms/electron/            Windows/macOS 桌面桥接
+platforms/capacitor-android/   Android 原生桥接
 ```
 
 优先保持这些业务接口一致：
@@ -73,45 +63,27 @@ platforms/capacitor-android/   Android 的 window.mytApp
 - `audio.save / reveal`
 - `history.list / getAudio / delete / clear`
 
-Android 不需要桌面窗口最小化、最大化和关闭接口。
+## Android MVP 必做事项
 
-## 七、Android MVP 必做事项
-
-1. 把左侧桌面导航改为底部导航或移动端抽屉，所有页面改为单列响应式。
+1. 把左侧桌面导航改为底部导航或移动端抽屉，页面改为单列响应式。
 2. 使用原生 HTTP 能力发送 MiMo 请求，重点测试 Base64 音频的内存峰值。
 3. 使用 Android Keystore 封装的安全存储保存用户 Key，禁止使用普通 `localStorage`。
 4. 使用系统文件选择器读取 WAV/MP3，并正确处理 URI、MIME 和临时访问权限。
-5. 历史元数据保存在本地数据库或轻量持久化中，WAV 放应用私有目录。
-6. 保存音频使用系统分享面板或 Storage Access Framework，避免申请全盘存储权限。
+5. 历史元数据保存到本地数据库，WAV 放入应用私有目录。
+6. 保存音频使用系统分享面板或 Storage Access Framework。
 7. 处理来电、耳机拔出、蓝牙切换、音频焦点、锁屏和后台切换。
 8. 支持系统返回手势、进程恢复、旋转、字体放大和低内存场景。
-9. 只有未来增加“现场录音”时才申请麦克风权限。
-10. 生成公司保管的 release keystore，正式发布输出 AAB 并满足 Google Play 当期要求。
+9. 只有增加现场录音功能时才申请麦克风权限。
+10. 使用正式 release keystore 输出 AAB，并满足 Google Play 当期要求。
 
-## 八、Android Key 方案
+## 建议顺序
 
-| 方案 | 适用场景 | 结论 |
-|---|---|---|
-| 用户自带 Key（BYOK） | 内部使用、技术用户、当前产品模式 | MVP 推荐，Key 进入 Android Keystore |
-| 公司后端代理 | 面向普通用户、统一结算与风控 | 更适合正式消费产品，但增加服务端开发和运维 |
-| APK 内置公司 Key | 任何场景 | 禁止，Key 可以被提取和滥用 |
-
-## 九、工作量评估
-
-- Android 可交互原型：约 2–3 个工作日。
-- 对齐当前桌面版主要功能：约 5–8 个工作日。
-- 达到 Google Play 可发布状态：再增加约 2–4 个工作日，不含商店审核等待。
-
-评估前提是继续复用 Web UI 与 MiMo 业务逻辑。如果改成 Flutter、React Native 或全原生 Kotlin，首期成本会明显增加。
-
-## 十、推荐顺序
-
-1. 先把 `0.1.3` 上传公司 Private GitHub。
-2. 用现成 macOS Action 生成双架构包并完成 Mac 真机回归。
-3. 配置 Apple 签名与公证，形成正式 macOS 发布流程。
-4. 再把 TTS 请求与校验抽到 `shared/`。
-5. 建立 Capacitor Android 工程，先完成内部 BYOK APK。
-6. 真机验证稳定后，再决定是否增加公司后端代理和 Google Play 上架。
+1. 先稳定 Windows 公开版本和更新流程。
+2. 在真实 Mac 上完成预览回归。
+3. 配置 Apple 签名与公证，再公开 macOS 下载。
+4. 把 TTS 请求与校验抽到 `shared/`。
+5. 建立 Capacitor Android 工程，先完成 BYOK 内测 APK。
+6. 真机验证稳定后，再决定是否增加后端代理和 Google Play 上架。
 
 ## 官方参考
 
@@ -119,8 +91,6 @@ Android 不需要桌面窗口最小化、最大化和关闭接口。
 - [Electron safeStorage](https://www.electronjs.org/docs/latest/api/safe-storage)
 - [electron-builder 跨平台构建说明](https://www.electron.build/docs/features/multi-platform-build/)
 - [electron-builder macOS 构建](https://www.electron.build/mac/)
-- [electron-builder GitHub Actions](https://www.electron.build/docs/features/github-actions/)
 - [Capacitor Android](https://capacitorjs.com/docs/android)
-- [Capacitor 环境要求](https://capacitorjs.com/docs/getting-started/environment-setup)
 
 [返回文档中心](README.md)
