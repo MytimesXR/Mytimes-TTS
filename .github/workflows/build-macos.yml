@@ -1,0 +1,65 @@
+name: Build macOS
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-macos:
+    name: macOS x64 and arm64
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+    steps:
+      - name: Checkout clean source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Audit dependencies and public source
+        run: |
+          npm audit --audit-level=high
+          npm run check:public
+
+      - name: Build unsigned macOS DMG and ZIP
+        run: npm run dist:mac
+
+      - name: Audit packaged app contents
+        run: npm run check:packaged
+
+      - name: Create SHA-256 checksums
+        run: |
+          shasum -a 256 \
+            release/Mytimes-TTS-*-macOS-*.dmg \
+            release/Mytimes-TTS-*-macOS-*.zip \
+            > release/SHA256SUMS-macOS.txt
+          cat release/SHA256SUMS-macOS.txt
+
+      - name: Upload macOS build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mytimes-TTS-macOS-${{ github.ref_name }}
+          if-no-files-found: error
+          retention-days: 14
+          path: |
+            release/Mytimes-TTS-*-macOS-*.dmg
+            release/Mytimes-TTS-*-macOS-*.zip
+            release/SHA256SUMS-macOS.txt
