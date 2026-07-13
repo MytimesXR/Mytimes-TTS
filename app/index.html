@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; media-src 'self' blob: data:; connect-src 'none'; img-src 'self' data: blob:">
+  <title>Mytimes TTS</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="titlebar">
+    <div class="titlebar-name">
+      <span class="mini-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span>Mytimes TTS</span>
+    </div>
+    <div class="window-actions">
+      <button id="minimizeWindow" class="window-button" aria-label="最小化">—</button>
+      <button id="maximizeWindow" class="window-button" aria-label="最大化">□</button>
+      <button id="closeWindow" class="window-button close" aria-label="关闭">×</button>
+    </div>
+  </div>
+
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true">
+          <span class="bar bar-one"></span>
+          <span class="bar bar-two"></span>
+          <span class="bar bar-three"></span>
+          <span class="bar bar-four"></span>
+        </div>
+        <div>
+          <strong>Mytimes</strong>
+          <small>VOICE STUDIO</small>
+        </div>
+      </div>
+
+      <nav class="side-nav" aria-label="主导航">
+        <button id="openGenerator" class="nav-item active" type="button" data-page="generator" aria-current="page">
+          <span class="nav-icon" aria-hidden="true"><svg class="fluent-icon" viewBox="0 0 24 24"><path d="M4 13v-2M8 17V7m4 13V4m4 13V7m4 6v-2"></path></svg></span>
+          <span>语音生成</span>
+        </button>
+        <button id="openHistory" class="nav-item" type="button" data-page="history">
+          <span class="nav-icon" aria-hidden="true"><svg class="fluent-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"></circle><path d="M12 7.5V12l3 2"></path></svg></span>
+          <span>生成历史</span>
+        </button>
+        <button id="openSettings" class="nav-item" type="button" data-page="settings">
+          <span class="nav-icon" aria-hidden="true"><svg class="fluent-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.86 2.86-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.86-2.86.06-.06A1.7 1.7 0 0 0 4.2 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H2.4V9.6h.1A1.7 1.7 0 0 0 4.2 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06L6.66 3.8l.06.06A1.7 1.7 0 0 0 8.6 4.2a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V2.4h4v.1a1.7 1.7 0 0 0 1 1.7 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.86 2.86-.06.06A1.7 1.7 0 0 0 19.4 8.6a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4h.1v4h-.1a1.7 1.7 0 0 0-1.7 1Z"></path></svg></span>
+          <span>设置</span>
+        </button>
+      </nav>
+
+      <div class="connection-card">
+        <span id="connectionDot" class="connection-dot"></span>
+        <div>
+          <strong id="connectionTitle">尚未配置</strong>
+          <small id="connectionDetail">添加 MiMo API Key</small>
+        </div>
+      </div>
+
+      <div class="sidebar-foot">
+        <span>MYTIMESXR</span>
+        <small id="appVersion">v0.1.3</small>
+      </div>
+    </aside>
+
+    <main class="workspace">
+      <section id="generatorPage" class="page-view">
+      <header class="page-header">
+        <div>
+          <p class="eyebrow">VOICE GENERATOR</p>
+          <h1>把文字变成有表现力的声音</h1>
+          <p id="pageDescription" class="page-description">选择官方音色，添加演绎风格，然后生成清晰自然的语音。</p>
+        </div>
+        <button id="headerSettings" class="icon-button" type="button" aria-label="打开设置" title="设置"><svg class="fluent-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.86 2.86-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.86-2.86.06-.06A1.7 1.7 0 0 0 4.2 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H2.4V9.6h.1A1.7 1.7 0 0 0 4.2 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06L6.66 3.8l.06.06A1.7 1.7 0 0 0 8.6 4.2a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V2.4h4v.1a1.7 1.7 0 0 0 1 1.7 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.86 2.86-.06.06A1.7 1.7 0 0 0 19.4 8.6a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4h.1v4h-.1a1.7 1.7 0 0 0-1.7 1Z"></path></svg></button>
+      </header>
+
+      <div class="mode-switch" role="tablist" aria-label="生成模式">
+        <button class="mode-button active" data-mode="preset" role="tab" aria-selected="true">
+          <span class="mode-number">01</span>
+          <span><strong>预置音色</strong><small>官方精品声音</small></span>
+        </button>
+        <button class="mode-button" data-mode="design" role="tab" aria-selected="false">
+          <span class="mode-number">02</span>
+          <span><strong>音色设计</strong><small>用描述创造声音</small></span>
+        </button>
+        <button class="mode-button" data-mode="clone" role="tab" aria-selected="false">
+          <span class="mode-number">03</span>
+          <span><strong>音色复刻</strong><small>上传参考音频</small></span>
+        </button>
+      </div>
+
+      <section class="composer-grid">
+        <div class="controls-column">
+          <section id="presetPanel" class="panel mode-panel">
+            <div class="section-heading">
+              <div><span class="step-label">VOICE</span><h2>选择音色</h2></div>
+              <span class="helper">9 个官方选项</span>
+            </div>
+            <label class="field-label" for="voiceSelect">MiMo 预置音色</label>
+            <div class="select-wrap">
+              <select id="voiceSelect">
+                <option value="mimo_default">MiMo 默认 · 自动匹配集群</option>
+                <optgroup label="中文女声">
+                  <option value="冰糖">冰糖 · 清亮自然</option>
+                  <option value="茉莉">茉莉 · 温柔细腻</option>
+                </optgroup>
+                <optgroup label="中文男声">
+                  <option value="苏打">苏打 · 青年男声</option>
+                  <option value="白桦">白桦 · 沉稳男声</option>
+                </optgroup>
+                <optgroup label="英文女声">
+                  <option value="Mia">Mia</option>
+                  <option value="Chloe">Chloe</option>
+                </optgroup>
+                <optgroup label="英文男声">
+                  <option value="Milo">Milo</option>
+                  <option value="Dean">Dean</option>
+                </optgroup>
+              </select>
+            </div>
+          </section>
+
+          <section id="designPanel" class="panel mode-panel hidden">
+            <div class="section-heading">
+              <div><span class="step-label">VOICE DESIGN</span><h2>设计音色</h2></div>
+              <span class="helper">建议 1–4 句</span>
+            </div>
+            <div class="trait-grid">
+              <label><span>性别与年龄</span><select id="designAge"><option value="">不指定</option><option>二十多岁的年轻女性</option><option>二十多岁的年轻男性</option><option>沉稳的中年女性</option><option>沉稳的中年男性</option><option>慈祥的老年女性</option><option>沧桑的老年男性</option></select></label>
+              <label><span>音色质感</span><select id="designTexture"><option value="">不指定</option><option>清亮通透，声音干净</option><option>丝滑醇厚，带着磁性</option><option>低沉沙哑，富有颗粒感</option><option>甜美轻盈，带有空气感</option><option>温暖柔和，亲近自然</option></select></label>
+              <label><span>语速节奏</span><select id="designPace"><option value="">不指定</option><option>语速适中，节奏自然</option><option>语速缓慢，停顿沉稳</option><option>语速稍快，表达利落</option><option>节奏轻快，语调上扬</option></select></label>
+              <label><span>角色场景</span><select id="designRole"><option value="">不指定</option><option>像专业纪录片旁白</option><option>像亲切的播客主持人</option><option>像深夜电台 DJ</option><option>像耐心讲故事的长辈</option><option>像自信干练的品牌主理人</option></select></label>
+            </div>
+            <button id="composeDesign" class="secondary-button compact" type="button">组合音色描述</button>
+            <label class="field-label" for="voiceDesign">最终音色描述</label>
+            <textarea id="voiceDesign" class="small-textarea" maxlength="600" placeholder="例如：一位二十多岁的年轻女性，声音清亮温暖，语速自然，像亲切的播客主持人在分享有趣的新发现。"></textarea>
+          </section>
+
+          <section id="clonePanel" class="panel mode-panel hidden">
+            <div class="section-heading">
+              <div><span class="step-label">VOICE CLONE</span><h2>参考音频</h2></div>
+              <span class="helper">WAV / MP3</span>
+            </div>
+            <label id="dropZone" class="drop-zone" for="voiceFile">
+              <input id="voiceFile" type="file" accept=".wav,.mp3,audio/wav,audio/mpeg">
+              <span class="upload-icon" aria-hidden="true"><svg class="fluent-icon" viewBox="0 0 24 24"><path d="M12 15V4m0 0L8 8m4-4 4 4M5 14v4.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V14"></path></svg></span>
+              <strong>拖入声音文件，或点击选择</strong>
+              <small>Base64 编码后不能超过 10 MB</small>
+            </label>
+            <div id="sampleCard" class="sample-card hidden">
+              <button id="removeSample" class="remove-sample" type="button" aria-label="移除参考音频">×</button>
+              <div class="sample-badge">WAVE</div>
+              <div class="sample-info"><strong id="sampleName"></strong><small id="sampleMeta"></small></div>
+              <audio id="sampleAudio" preload="metadata"></audio>
+              <div class="sample-player">
+                <button id="samplePlay" class="sample-play-button" type="button" aria-label="播放参考音频"></button>
+                <span id="sampleTime" class="time-label sample-time">00:00 / 00:00</span>
+                <input id="sampleSeek" class="seek-bar" type="range" min="0" max="1000" value="0" aria-label="参考音频播放进度">
+              </div>
+            </div>
+            <label class="consent-row"><input id="voiceConsent" type="checkbox"><span>我确认拥有该声音的使用授权</span></label>
+          </section>
+
+          <section id="stylePanel" class="panel">
+            <div class="section-heading">
+              <div><span class="step-label">DIRECTION</span><h2>演绎风格</h2></div>
+              <span class="helper">不会修改正文</span>
+            </div>
+            <div id="styleChips" class="chips" aria-label="快捷风格">
+              <button type="button" data-tag="温柔">温柔</button><button type="button" data-tag="开心">开心</button><button type="button" data-tag="平静">平静</button><button type="button" data-tag="兴奋">兴奋</button><button type="button" data-tag="深沉">深沉</button><button type="button" data-tag="磁性">磁性</button><button type="button" data-tag="慵懒">慵懒</button><button type="button" data-tag="语速稍快">稍快</button><button type="button" data-tag="语速缓慢">稍慢</button><button type="button" data-tag="粤语">粤语</button>
+            </div>
+            <label class="field-label" for="styleText">自然语言指令</label>
+            <textarea id="styleText" class="small-textarea" maxlength="600" placeholder="例如：用温暖亲切的语气讲述，语速适中，重要信息稍作停顿。"></textarea>
+            <div class="inline-actions">
+              <button id="organizeStyle" class="secondary-button compact" type="button">规则整理</button>
+              <button id="optimizeStyle" class="spark-button compact" type="button"><span>✦</span> AI 润色风格</button>
+            </div>
+            <div id="optimizeReview" class="optimize-review hidden">
+              <small>AI 建议</small>
+              <p id="optimizedStyleText"></p>
+              <div><button id="discardOptimized" type="button">放弃</button><button id="applyOptimized" type="button">应用建议</button></div>
+            </div>
+          </section>
+        </div>
+
+        <div class="editor-column">
+          <section class="panel text-panel">
+            <div class="section-heading">
+              <div><span class="step-label">SCRIPT</span><h2>输入正文</h2></div>
+              <span id="characterCount" class="helper">0 字</span>
+            </div>
+            <textarea id="scriptText" class="script-textarea" maxlength="12000" placeholder="在这里输入需要转换为语音的文字。风格润色与正文完全分离，正文不会被自动改写。"></textarea>
+            <div class="text-footnote"><span>目标正文将作为 assistant 消息发送</span><kbd id="shortcutModifier">Ctrl</kbd><span>+</span><kbd>Enter</kbd><span>生成</span></div>
+          </section>
+
+          <section class="action-panel">
+            <div id="generationStatus" class="generation-status">
+              <span class="status-icon">●</span>
+              <div><strong id="statusTitle">准备就绪</strong><small id="statusDetail">填写内容后开始生成</small></div>
+            </div>
+            <div id="progressTrack" class="progress-track"><span></span></div>
+            <div class="primary-actions">
+              <button id="cancelGeneration" class="secondary-button hidden" type="button">取消</button>
+              <button id="generateButton" class="generate-button" type="button"><span>生成语音</span><svg class="fluent-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 10v4h3l4 3V7L8 10H5Z"></path><path d="M15 9.5a4 4 0 0 1 0 5m2-7.5a7 7 0 0 1 0 10"></path></svg></button>
+            </div>
+          </section>
+
+          <section id="resultPanel" class="panel result-panel">
+            <div class="section-heading">
+              <div><span class="step-label">OUTPUT</span><h2>生成结果</h2></div>
+              <span id="resultBadge" class="result-badge idle">等待生成</span>
+            </div>
+            <div class="waveform-wrap">
+              <canvas id="waveform" role="slider" tabindex="0" aria-label="音频波形，点击或拖动定位" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" title="点击或拖动定位"></canvas>
+              <div class="wave-center-line"></div>
+            </div>
+            <audio id="resultAudio" preload="metadata"></audio>
+            <div class="player-row">
+              <button id="playButton" class="play-button" type="button" disabled aria-label="播放"></button>
+              <span id="audioTime" class="time-label">00:00 / 00:00</span>
+              <input id="seekBar" class="seek-bar" type="range" min="0" max="1000" value="0" disabled aria-label="播放进度">
+              <button id="saveAudio" class="save-button" type="button" disabled>保存音频</button>
+              <button id="revealAudio" class="icon-button small hidden" type="button" title="在文件夹中显示" aria-label="在文件夹中显示"><svg class="fluent-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 7.5h6l2 2h9v8.25A2.25 2.25 0 0 1 18.25 20H5.75a2.25 2.25 0 0 1-2.25-2.25V7.5Z"></path><path d="M3.5 7.5V6.25A2.25 2.25 0 0 1 5.75 4h3l2 2H18a2 2 0 0 1 2 2v1.5"></path></svg></button>
+            </div>
+          </section>
+        </div>
+      </section>
+      </section>
+
+      <section id="historyPage" class="page-view hidden">
+        <header class="page-header page-header-spacious">
+          <div>
+            <p class="eyebrow">LOCAL LIBRARY</p>
+            <h1>生成历史</h1>
+            <p class="page-description">每次成功生成都会自动保存在本机，可以试听、另存、重新使用参数或删除。</p>
+          </div>
+          <div class="history-head-actions">
+            <span id="historyCount" class="history-count">0 条记录</span>
+            <button id="clearHistory" class="secondary-button" type="button">清空历史</button>
+          </div>
+        </header>
+
+        <section id="historyEmpty" class="history-empty panel">
+          <div class="empty-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+          <h2>还没有生成记录</h2>
+          <p>完成第一条语音后，它会自动出现在这里。</p>
+          <button id="emptyStartGenerating" class="generate-button" type="button"><span>开始生成</span><svg class="fluent-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 10v4h3l4 3V7L8 10H5Z"></path><path d="M15 9.5a4 4 0 0 1 0 5m2-7.5a7 7 0 0 1 0 10"></path></svg></button>
+        </section>
+
+        <section id="historyList" class="history-list hidden" aria-label="生成历史列表"></section>
+      </section>
+
+      <section id="settingsPage" class="page-view hidden">
+        <header class="page-header page-header-spacious">
+          <div>
+            <p class="eyebrow">PREFERENCES</p>
+            <h1>设置</h1>
+            <p class="page-description">管理 MiMo 连接、密钥安全和应用外观。</p>
+          </div>
+          <button id="backToGenerator" class="secondary-button" type="button">返回生成</button>
+        </header>
+
+        <div class="settings-page-grid">
+          <section class="panel settings-main-panel">
+            <div class="section-heading">
+              <div><span class="step-label">API CONNECTION</span><h2>MiMo 连接</h2></div>
+              <span id="settingsConnectionBadge" class="result-badge idle">未验证</span>
+            </div>
+            <div class="settings-form">
+              <label><span>服务类型</span><select id="serviceType"><option value="standard">MiMo 标准 API</option><option value="token-plan">MiMo Token Plan</option><option value="custom">自定义兼容服务</option></select></label>
+              <label><span>Base URL</span><input id="baseUrl" type="url" spellcheck="false" placeholder="https://api.xiaomimimo.com/v1"><small>填写到 /v1 即可，也兼容完整 /chat/completions 地址。</small></label>
+              <label><span>API Key</span><div class="password-wrap"><input id="apiKey" type="password" autocomplete="off" placeholder="输入 API Key"><button id="toggleApiKey" class="password-toggle" type="button" aria-label="显示 API Key" title="显示 API Key">
+  <svg class="eye-icon eye-open" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M2.5 12s3.6-6 9.5-6 9.5 6 9.5 6-3.6 6-9.5 6-9.5-6-9.5-6Z"></path>
+    <circle cx="12" cy="12" r="2.75"></circle>
+  </svg>
+  <svg class="eye-icon eye-closed" viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M3.5 8.4C2.8 9.3 2.5 10 2.5 10s3.6 6 9.5 6c1.5 0 2.8-.4 3.9-.9"></path>
+    <path d="M20.5 13.6C21.2 12.7 21.5 12 21.5 12S17.9 6 12 6c-1.5 0-2.8.4-3.9.9"></path>
+    <path d="m4 4 16 16"></path>
+  </svg>
+</button></div><small>密钥通过操作系统安全存储加密保存，不写入明文配置。</small></label>
+              <div class="settings-grid">
+                <label><span>认证方式</span><select id="authMode"><option value="api-key">api-key</option><option value="bearer">Bearer Token</option></select></label>
+                <label><span>请求超时</span><select id="timeoutSeconds"><option value="60">60 秒</option><option value="180">180 秒</option><option value="300">300 秒</option><option value="600">600 秒</option></select></label>
+              </div>
+              <div id="settingsMessage" class="settings-message">测试连接会发起一次极小的文本模型请求。</div>
+              <div class="settings-inline-actions">
+                <button id="testConnection" class="secondary-button" type="button">保存并测试</button>
+                <button id="saveSettings" class="generate-button" type="button"><span>保存设置</span></button>
+              </div>
+            </div>
+          </section>
+
+          <aside class="settings-side-column">
+            <section class="panel">
+              <div class="section-heading">
+                <div><span class="step-label">APPEARANCE</span><h2>外观</h2></div>
+              </div>
+              <div class="settings-form">
+                <label><span>界面主题</span><select id="themeSelect"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label>
+              </div>
+            </section>
+            <section class="panel privacy-panel">
+              <span class="privacy-mark" aria-hidden="true"><svg class="fluent-icon" viewBox="0 0 24 24"><path d="M12 3.5 19 6v5.4c0 4.3-2.9 7.7-7 9.1-4.1-1.4-7-4.8-7-9.1V6l7-2.5Z"></path><path d="M9 12.2 11.1 14l4-4.2"></path></svg></span>
+              <div>
+                <h2>本地与私密</h2>
+                <p>正文和复刻样本只发送到当前配置的 API。历史音频保存在这台电脑，不经过 MytimesXR 服务器。</p>
+              </div>
+            </section>
+            <section class="panel storage-panel">
+              <div><span class="step-label">STORAGE</span><h2>本地历史</h2></div>
+              <p id="storageSummary">正在读取本地记录。</p>
+              <button id="openHistoryFromSettings" class="text-button" type="button">查看生成历史 →</button>
+            </section>
+          </aside>
+        </div>
+      </section>
+    </main>
+  </div>
+
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
