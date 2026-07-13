@@ -1,0 +1,47 @@
+# Dependencies and generated packages
+node_modules/
+release/
+dist/
+out/
+app-release/
+publish/
+backups/
+.electron-builder-cache/
+
+# Local app data, generation history and audio
+settings.json
+history.json
+generated/
+output/
+*.wav
+*.mp3
+*.m4a
+*.flac
+*.pcm
+
+# Secrets, environment files and signing credentials
+.env
+.env.*
+!.env.example
+electron-builder.env
+*.p12
+*.pfx
+*.pem
+*.key
+*.p8
+*.mobileprovision
+*.provisionprofile
+
+# Logs, caches and operating-system files
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor-local settings
+.idea/
+*.user
+*.suo
