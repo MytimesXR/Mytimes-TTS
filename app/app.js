@@ -24,6 +24,8 @@ const state = {
   appInfo: null,
   history: [],
   settings: null,
+  dataLocation: null,
+  onboarding: null,
   selectedTags: new Set(),
   sampleFile: null,
   sampleUrl: '',
@@ -88,6 +90,20 @@ generatorPage: $('#generatorPage'),
   historyEmpty: $('#historyEmpty'),
   historyCount: $('#historyCount'),
   storageSummary: $('#storageSummary'),
+  dataLocationBadge: $('#dataLocationBadge'),
+  dataLocationPath: $('#dataLocationPath'),
+  resetDataLocation: $('#resetDataLocation'),
+  onboardingOverlay: $('#onboardingOverlay'),
+  onboardingWelcome: $('#onboardingWelcome'),
+  onboardingStorage: $('#onboardingStorage'),
+  onboardingReady: $('#onboardingReady'),
+  onboardingCompanyBadge: $('#onboardingCompanyBadge'),
+  onboardingCompanyPath: $('#onboardingCompanyPath'),
+  onboardingCompanyDetail: $('#onboardingCompanyDetail'),
+  onboardingCompanyButton: $('#onboardingCompanyButton'),
+  onboardingReadyTitle: $('#onboardingReadyTitle'),
+  onboardingReadyDetail: $('#onboardingReadyDetail'),
+  onboardingReadyPath: $('#onboardingReadyPath'),
   settingsConnectionBadge: $('#settingsConnectionBadge'),
   serviceType: $('#serviceType'),
   baseUrl: $('#baseUrl'),
@@ -107,19 +123,26 @@ async function initialize() {
   applyPlatformUi();
   bindEvents();
   setMode(state.mode);
-  const [settings, appInfo] = await Promise.all([
+  const [settings, appInfo, dataLocation, onboarding] = await Promise.all([
     window.mytApp.settings.get(),
     window.mytApp.app.getInfo(),
+    window.mytApp.storage.getLocation(),
+    window.mytApp.onboarding.getStatus(),
   ]);
   state.settings = settings;
   state.appInfo = appInfo;
+  state.dataLocation = dataLocation;
+  state.onboarding = onboarding;
   elements.appVersion.textContent = `v${appInfo.version}`;
   populateSettingsForm();
+  updateDataLocationUi();
   applyTheme(state.settings.theme);
   refreshConnectionStatus();
   await loadHistory();
   resizeWaveformCanvas();
   drawIdleWaveform();
+  if (dataLocation.legacyDataCopied) showToast('已将旧设置、历史和音频复制到便携数据目录。');
+  if (onboarding.shouldShow) openOnboarding(onboarding);
 }
 
 function bindEvents() {
@@ -237,6 +260,17 @@ function bindEvents() {
   $('#backToGenerator').addEventListener('click', () => showPage('generator'));
   $('#emptyStartGenerating').addEventListener('click', () => showPage('generator'));
   $('#openHistoryFromSettings').addEventListener('click', () => showPage('history'));
+  $('#useCompanyDataLocation').addEventListener('click', useCompanyDataLocation);
+  $('#chooseDataLocation').addEventListener('click', chooseDataLocation);
+  $('#openDataLocation').addEventListener('click', openDataLocation);
+  $('#resetDataLocation').addEventListener('click', resetDataLocation);
+  $('#onboardingStart').addEventListener('click', () => showOnboardingStep('storage'));
+  $('#onboardingBackWelcome').addEventListener('click', () => showOnboardingStep('welcome'));
+  $('#onboardingBackStorage').addEventListener('click', () => showOnboardingStep('storage'));
+  $('#onboardingCompanyButton').addEventListener('click', useOnboardingCompanyLocation);
+  $('#onboardingChooseButton').addEventListener('click', chooseOnboardingLocation);
+  $('#onboardingPortableButton').addEventListener('click', useOnboardingPortableLocation);
+  $('#onboardingFinish').addEventListener('click', finishOnboarding);
   $('#clearHistory').addEventListener('click', clearHistoryWithConfirmation);
   $('#saveSettings').addEventListener('click', saveSettings);
   $('#testConnection').addEventListener('click', testConnection);
@@ -933,7 +967,7 @@ function renderHistory(summary) {
   elements.historyCount.textContent = entries.length + ' 条记录';
   elements.storageSummary.textContent = entries.length
     ? '已保存 ' + entries.length + ' 条语音，共 ' + formatBytes(summary.totalBytes || 0) + '。最多保留最近 100 条。'
-    : '尚未保存生成记录。成功生成后会自动保存在本机。';
+    : '尚未保存生成记录。成功生成后会自动保存在当前数据目录。';
   elements.historyEmpty.classList.toggle('hidden', entries.length > 0);
   elements.historyList.classList.toggle('hidden', entries.length === 0);
   elements.historyList.replaceChildren();
@@ -1091,11 +1125,221 @@ function formatHistoryDate(value) {
     minute: '2-digit',
   }).format(date);
 }
+
+function showOnboardingStep(step) {
+  const steps = {
+    welcome: elements.onboardingWelcome,
+    storage: elements.onboardingStorage,
+    ready: elements.onboardingReady,
+  };
+  const stepIndex = { welcome: 0, storage: 1, ready: 2 }[step] ?? 0;
+  Object.entries(steps).forEach(([name, element]) => element.classList.toggle('hidden', name !== step));
+  $$('.onboarding-progress i').forEach((marker, index) => marker.classList.toggle('active', index <= stepIndex));
+  const focusTarget = steps[step].querySelector('button:not(:disabled)');
+  requestAnimationFrame(() => focusTarget?.focus());
+}
+
+function renderOnboardingCompany(status) {
+  const company = status.company;
+  elements.onboardingCompanyPath.textContent = company.path;
+  elements.onboardingCompanyPath.title = company.path;
+  elements.onboardingCompanyButton.disabled = !company.available;
+
+  if (!company.available) {
+    elements.onboardingCompanyBadge.textContent = '未连接';
+    elements.onboardingCompanyBadge.className = 'result-badge idle';
+    elements.onboardingCompanyDetail.textContent = '没有检测到 Y: 映射盘或目录不可写，请先连接公司 NAS，或选择其他目录。';
+    return;
+  }
+
+  elements.onboardingCompanyBadge.textContent = company.hasData ? '发现数据' : '可用';
+  elements.onboardingCompanyBadge.className = 'result-badge ready';
+  if (company.hasSettings) {
+    elements.onboardingCompanyDetail.textContent = '检测到共享配置文件。使用后会读取公司 Base URL、普通设置和历史；本机 API Key 仍单独加密。';
+  } else if (company.hasData) {
+    elements.onboardingCompanyDetail.textContent = '目录中已有历史或音频，但没有检测到 settings.json；进入后会提醒补充配置。';
+  } else {
+    elements.onboardingCompanyDetail.textContent = '公司目录可访问。首次使用会创建设置、历史、音频和本机加密密钥目录。';
+  }
+}
+
+function openOnboarding(status) {
+  state.onboarding = status;
+  renderOnboardingCompany(status);
+  elements.onboardingOverlay.classList.remove('hidden');
+  if (status.needsLocationRecovery) {
+    showOnboardingStep('storage');
+    showToast('上次选择的数据目录当前不可用，请重新连接 NAS 或选择其他目录。', true);
+  } else {
+    showOnboardingStep('welcome');
+  }
+}
+
+function renderOnboardingReady(status) {
+  elements.onboardingReadyPath.textContent = status.current.path;
+  elements.onboardingReadyPath.title = status.current.path;
+  const finishLabel = $('#onboardingFinish span');
+
+  if (status.currentHasKey) {
+    elements.onboardingReadyTitle.textContent = '配置与 API Key 已就绪';
+    elements.onboardingReadyDetail.textContent = '已检测到这台电脑可用的加密 API Key，可以直接开始生成语音。';
+    finishLabel.textContent = '开始使用';
+  } else if (status.currentHasSettings) {
+    elements.onboardingReadyTitle.textContent = '已发现配置，还需填写 API Key';
+    elements.onboardingReadyDetail.textContent = '共享 Base URL 和普通设置已经载入。出于安全原因，这台电脑需要单独填写一次自己的 API Key。';
+    finishLabel.textContent = '进入设置';
+  } else {
+    elements.onboardingReadyTitle.textContent = '未检测到配置文件';
+    elements.onboardingReadyDetail.textContent = '数据目录已经准备好。下一步进入设置，选择服务类型并填写 Base URL 与 API Key。';
+    finishLabel.textContent = '进入设置';
+  }
+}
+
+async function applyOnboardingLocation(result) {
+  if (result.cancelled) return;
+  state.dataLocation = result;
+  state.settings = await window.mytApp.settings.get();
+  populateSettingsForm();
+  updateDataLocationUi();
+  refreshConnectionStatus();
+  await loadHistory();
+  state.onboarding = await window.mytApp.onboarding.getStatus();
+  renderOnboardingCompany(state.onboarding);
+  renderOnboardingReady(state.onboarding);
+  showOnboardingStep('ready');
+}
+
+async function runOnboardingLocationAction(action) {
+  const buttons = [
+    elements.onboardingCompanyButton,
+    $('#onboardingChooseButton'),
+    $('#onboardingPortableButton'),
+  ];
+  buttons.forEach((button) => { button.disabled = true; });
+  try {
+    await applyOnboardingLocation(await action());
+  } catch (error) {
+    showToast(error.message, true);
+    elements.onboardingCompanyDetail.textContent = error.message;
+    elements.onboardingCompanyBadge.textContent = '失败';
+    elements.onboardingCompanyBadge.className = 'result-badge error';
+  } finally {
+    state.onboarding = state.onboarding || await window.mytApp.onboarding.getStatus();
+    renderOnboardingCompany(state.onboarding);
+    $('#onboardingChooseButton').disabled = false;
+    $('#onboardingPortableButton').disabled = false;
+  }
+}
+
+function useOnboardingCompanyLocation() {
+  return runOnboardingLocationAction(() => window.mytApp.storage.useCompanyLocation());
+}
+
+function chooseOnboardingLocation() {
+  return runOnboardingLocationAction(() => window.mytApp.storage.chooseLocation());
+}
+
+function useOnboardingPortableLocation() {
+  return runOnboardingLocationAction(() => window.mytApp.storage.resetLocation());
+}
+
+async function finishOnboarding() {
+  const button = $('#onboardingFinish');
+  button.disabled = true;
+  try {
+    await window.mytApp.onboarding.complete();
+    elements.onboardingOverlay.classList.add('hidden');
+    if (state.onboarding?.currentHasKey) showPage('generator');
+    else openSettings();
+  } catch (error) {
+    showToast('无法保存初始化状态：' + error.message, true);
+  } finally {
+    button.disabled = false;
+  }
+}
+
 function openSettings() {
   populateSettingsForm();
+  refreshDataLocationInfo();
   elements.settingsMessage.className = 'settings-message';
   elements.settingsMessage.textContent = '测试连接会发起一次极小的文本模型请求。';
   showPage('settings');
+}
+
+function updateDataLocationUi() {
+  const info = state.dataLocation;
+  if (!info) return;
+  elements.dataLocationPath.textContent = info.path;
+  elements.dataLocationPath.title = info.path;
+  if (!info.configured) {
+    elements.dataLocationBadge.textContent = '待选择';
+    elements.dataLocationBadge.className = 'result-badge idle';
+  } else {
+    elements.dataLocationBadge.textContent = info.isDefault ? '本机文档' : '自定义';
+    elements.dataLocationBadge.className = info.available ? 'result-badge ready' : 'result-badge error';
+  }
+  elements.resetDataLocation.disabled = Boolean(info.configured && info.isDefault);
+}
+
+async function refreshDataLocationInfo() {
+  try {
+    state.dataLocation = await window.mytApp.storage.getLocation();
+    updateDataLocationUi();
+  } catch (error) {
+    showToast('无法读取数据目录：' + error.message, true);
+  }
+}
+
+async function applyStorageChange(result) {
+  if (result.cancelled) return;
+  state.dataLocation = result;
+  state.settings = await window.mytApp.settings.get();
+  populateSettingsForm();
+  updateDataLocationUi();
+  refreshConnectionStatus();
+  await loadHistory();
+  const action = result.usedExisting ? '已切换到目录中的现有数据。' : '已复制当前数据并切换目录。';
+  elements.settingsMessage.className = 'settings-message success';
+  elements.settingsMessage.textContent = action;
+  showToast(action);
+}
+
+async function chooseDataLocation() {
+  try {
+    await applyStorageChange(await window.mytApp.storage.chooseLocation());
+  } catch (error) {
+    elements.settingsMessage.className = 'settings-message error';
+    elements.settingsMessage.textContent = error.message;
+    showToast(error.message, true);
+  }
+}
+
+async function useCompanyDataLocation() {
+  try {
+    await applyStorageChange(await window.mytApp.storage.useCompanyLocation());
+  } catch (error) {
+    elements.settingsMessage.className = 'settings-message error';
+    elements.settingsMessage.textContent = error.message;
+    showToast(error.message, true);
+  }
+}
+
+async function resetDataLocation() {
+  try {
+    await applyStorageChange(await window.mytApp.storage.resetLocation());
+  } catch (error) {
+    elements.settingsMessage.className = 'settings-message error';
+    elements.settingsMessage.textContent = error.message;
+    showToast(error.message, true);
+  }
+}
+
+async function openDataLocation() {
+  try {
+    await window.mytApp.storage.revealLocation();
+  } catch (error) {
+    showToast('无法打开数据目录：' + error.message, true);
+  }
 }
 
 function populateSettingsForm() {

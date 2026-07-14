@@ -17,6 +17,9 @@ const ignoredDirectories = new Set([
 const forbiddenNames = new Set([
   'settings.json',
   'history.json',
+  'storage-state.json',
+  'mytimes-tts-data-location.json',
+  'mytimes-tts-bootstrap.json',
   'electron-builder.env',
 ]);
 

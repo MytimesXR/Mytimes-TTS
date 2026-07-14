@@ -1,6 +1,7 @@
 const { app, BrowserWindow, dialog, ipcMain, Menu, safeStorage, shell } = require('electron');
 const fs = require('fs');
 const crypto = require('crypto');
+const os = require('os');
 const path = require('path');
 
 const DEFAULT_SETTINGS = Object.freeze({
@@ -14,17 +15,322 @@ const DEFAULT_SETTINGS = Object.freeze({
 
 const activeRequests = new Map();
 let mainWindow = null;
+const DATA_DIRECTORY_NAME = 'Mytimes-TTS-Data';
+const LEGACY_DATA_LOCATION_FILE = 'Mytimes-TTS-data-location.json';
+const LEGACY_ONBOARDING_FILE = 'Mytimes-TTS-bootstrap.json';
+const LOCAL_STATE_FILE = 'storage-state.json';
+const COMPANY_DATA_DIRECTORY = 'Y:\\【软件插件】\\Mytimes-TTS-Data';
 
-function getSettingsPath() {
-  return path.join(app.getPath('userData'), 'settings.json');
+function getExecutableDirectory() {
+  if (!app.isPackaged) return path.resolve(__dirname, '..');
+  if (process.env.PORTABLE_EXECUTABLE_DIR) return path.resolve(process.env.PORTABLE_EXECUTABLE_DIR);
+  return path.dirname(process.execPath);
 }
 
-function getHistoryPath() {
-  return path.join(app.getPath('userData'), 'history.json');
+const executableDirectory = getExecutableDirectory();
+const legacyDefaultDataDirectory = app.isPackaged
+  ? path.join(executableDirectory, DATA_DIRECTORY_NAME)
+  : path.join(executableDirectory, 'release', 'dev-data');
+const defaultDataDirectory = path.join(app.getPath('documents'), DATA_DIRECTORY_NAME);
+const legacyDataLocationFile = path.join(executableDirectory, LEGACY_DATA_LOCATION_FILE);
+const legacyOnboardingFile = path.join(executableDirectory, LEGACY_ONBOARDING_FILE);
+const localStateFile = path.resolve(
+  process.env.MYT_TTS_STATE_FILE || path.join(app.getPath('userData'), LOCAL_STATE_FILE),
+);
+let localState = {};
+let hasConfiguredDataLocation = false;
+
+function getCompanyDataDirectory() {
+  return path.resolve(process.env.MYT_TTS_COMPANY_DATA_DIR || COMPANY_DATA_DIRECTORY);
 }
 
-function getGeneratedAudioDir() {
-  return path.join(app.getPath('userData'), 'generated');
+function readConfiguredDataDirectory() {
+  if (process.env.MYT_TTS_DATA_DIR) {
+    hasConfiguredDataLocation = true;
+    return path.resolve(process.env.MYT_TTS_DATA_DIR);
+  }
+
+  localState = loadJson(localStateFile, {});
+  if (localState?.dataDirectory) {
+    hasConfiguredDataLocation = true;
+    return path.resolve(String(localState.dataDirectory));
+  }
+
+  const legacyPointer = loadJson(legacyDataLocationFile, {});
+  const legacyOnboarding = loadJson(legacyOnboardingFile, {});
+  let migratedDirectory = legacyPointer?.dataDirectory
+    ? path.resolve(String(legacyPointer.dataDirectory))
+    : '';
+  if (!migratedDirectory && hasBusinessData(legacyDefaultDataDirectory)) {
+    migratedDirectory = legacyDefaultDataDirectory;
+  }
+  if (!migratedDirectory && hasBusinessData(app.getPath('userData'))) {
+    migratedDirectory = app.getPath('userData');
+  }
+
+  if (migratedDirectory) {
+    localState = {
+      schemaVersion: 1,
+      dataDirectory: migratedDirectory,
+      onboardingCompleted: legacyOnboarding.completed === true,
+      migratedFromLegacyPortable: true,
+      updatedAt: new Date().toISOString(),
+    };
+    writeJson(localStateFile, localState);
+    hasConfiguredDataLocation = true;
+    for (const legacyFile of [legacyDataLocationFile, legacyOnboardingFile]) {
+      try { fs.unlinkSync(legacyFile); } catch {}
+    }
+    return migratedDirectory;
+  }
+
+  return defaultDataDirectory;
+}
+
+let dataDirectory = readConfiguredDataDirectory();
+let legacyDataCopied = false;
+
+function samePath(left, right) {
+  return path.resolve(left).toLowerCase() === path.resolve(right).toLowerCase();
+}
+
+function isPathInside(parent, child) {
+  const relative = path.relative(path.resolve(parent), path.resolve(child));
+  return Boolean(relative && !relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
+function getDirectoryAccessInfo(target) {
+  const exists = fs.existsSync(target);
+  let accessTarget = exists ? target : path.dirname(target);
+  while (!fs.existsSync(accessTarget)) {
+    const parent = path.dirname(accessTarget);
+    if (samePath(parent, accessTarget)) break;
+    accessTarget = parent;
+  }
+  let available = false;
+  try {
+    if (fs.existsSync(accessTarget)) {
+      fs.accessSync(accessTarget, fs.constants.R_OK | fs.constants.W_OK);
+      available = true;
+    }
+  } catch {}
+  return { exists, available };
+}
+
+function getMachineSecretId() {
+  const identity = `${os.hostname()}\0${os.userInfo().username}`;
+  return crypto.createHash('sha256').update(identity).digest('hex').slice(0, 20);
+}
+
+function getSecretPath(root = dataDirectory) {
+  return path.join(root, 'secrets', `${getMachineSecretId()}.json`);
+}
+
+function getSettingsPath(root = dataDirectory) {
+  return path.join(root, 'settings.json');
+}
+
+function getHistoryPath(root = dataDirectory) {
+  return path.join(root, 'history.json');
+}
+
+function getGeneratedAudioDir(root = dataDirectory) {
+  return path.join(root, 'generated');
+}
+
+function hasBusinessData(root) {
+  return fs.existsSync(getSettingsPath(root))
+    || fs.existsSync(getHistoryPath(root))
+    || fs.existsSync(getGeneratedAudioDir(root));
+}
+
+function writeJson(filePath, value) {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, JSON.stringify(value, null, 2), 'utf8');
+}
+
+function loadJson(filePath, fallback) {
+  try {
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch {
+    return fallback;
+  }
+}
+
+function rewriteHistoryPaths(root) {
+  const historyPath = getHistoryPath(root);
+  const entries = loadJson(historyPath, []);
+  if (!Array.isArray(entries)) return;
+  for (const entry of entries) {
+    if (entry?.filePath) entry.filePath = path.join(getGeneratedAudioDir(root), path.basename(entry.filePath));
+  }
+  writeJson(historyPath, entries);
+}
+
+function copyBusinessData(source, target) {
+  if (samePath(source, target)) return;
+  if (isPathInside(source, target)) throw new Error('新数据目录不能放在当前数据目录内部。');
+  fs.mkdirSync(target, { recursive: true });
+  for (const name of ['settings.json', 'history.json']) {
+    const sourceFile = path.join(source, name);
+    if (fs.existsSync(sourceFile)) fs.copyFileSync(sourceFile, path.join(target, name));
+  }
+  const sourceAudio = getGeneratedAudioDir(source);
+  if (fs.existsSync(sourceAudio)) {
+    fs.cpSync(sourceAudio, getGeneratedAudioDir(target), { recursive: true, force: true });
+  }
+  const sourceSecret = getSecretPath(source);
+  if (fs.existsSync(sourceSecret)) {
+    const targetSecret = getSecretPath(target);
+    fs.mkdirSync(path.dirname(targetSecret), { recursive: true });
+    fs.copyFileSync(sourceSecret, targetSecret);
+  }
+  if (fs.existsSync(getHistoryPath(target))) rewriteHistoryPaths(target);
+}
+
+function migrateEmbeddedSecret(root) {
+  const settingsPath = getSettingsPath(root);
+  const stored = loadJson(settingsPath, {});
+  if (!stored || typeof stored !== 'object' || !Object.hasOwn(stored, 'apiKeyEncrypted')) return;
+  const secretPath = getSecretPath(root);
+  if (stored.apiKeyEncrypted && !fs.existsSync(secretPath)) {
+    writeJson(secretPath, { apiKeyEncrypted: stored.apiKeyEncrypted });
+  }
+  delete stored.apiKeyEncrypted;
+  writeJson(settingsPath, stored);
+}
+
+function migrateLegacyDataIfNeeded() {
+  if (!hasConfiguredDataLocation || !fs.existsSync(dataDirectory)) return;
+  if (process.env.MYT_TTS_SKIP_LEGACY_MIGRATION === '1') {
+    migrateEmbeddedSecret(dataDirectory);
+    return;
+  }
+  const legacyDirectory = app.getPath('userData');
+  if (samePath(legacyDirectory, dataDirectory)) {
+    migrateEmbeddedSecret(dataDirectory);
+    return;
+  }
+  if (!hasBusinessData(dataDirectory) && hasBusinessData(legacyDirectory)) {
+    copyBusinessData(legacyDirectory, dataDirectory);
+    legacyDataCopied = true;
+  }
+  migrateEmbeddedSecret(dataDirectory);
+}
+
+function saveDataLocation(target) {
+  hasConfiguredDataLocation = true;
+  localState = {
+    ...localState,
+    schemaVersion: 1,
+    dataDirectory: path.resolve(target),
+    updatedAt: new Date().toISOString(),
+  };
+  writeJson(localStateFile, localState);
+}
+
+function getDataLocationInfo() {
+  const access = getDirectoryAccessInfo(dataDirectory);
+  return {
+    path: dataDirectory,
+    defaultPath: defaultDataDirectory,
+    executableDirectory,
+    isDefault: samePath(dataDirectory, defaultDataDirectory),
+    configured: hasConfiguredDataLocation,
+    exists: access.exists,
+    available: access.available,
+    persistence: 'windows-user-index',
+    legacyDataCopied,
+  };
+}
+
+function getCompanyDataDirectoryInfo() {
+  const companyPath = getCompanyDataDirectory();
+  const access = getDirectoryAccessInfo(companyPath);
+  return {
+    path: companyPath,
+    available: access.available,
+    exists: access.exists,
+    hasData: hasBusinessData(companyPath),
+    hasSettings: fs.existsSync(getSettingsPath(companyPath)),
+  };
+}
+
+function getOnboardingStatus() {
+  localState = loadJson(localStateFile, localState);
+  const current = getDataLocationInfo();
+  const completed = localState.onboardingCompleted === true;
+  const settings = getSettings();
+  return {
+    shouldShow: process.env.MYT_TTS_FORCE_ONBOARDING === '1'
+      || !completed
+      || !current.configured
+      || !current.exists
+      || !current.available,
+    completed,
+    needsLocationRecovery: completed && (!current.exists || !current.available),
+    company: getCompanyDataDirectoryInfo(),
+    current,
+    currentHasSettings: fs.existsSync(getSettingsPath()),
+    currentHasHistory: fs.existsSync(getHistoryPath()),
+    currentHasKey: Boolean(settings.apiKey),
+  };
+}
+
+function completeOnboarding() {
+  const current = getDataLocationInfo();
+  if (!current.configured || !current.exists || !current.available) {
+    throw new Error('请先选择一个当前可用的数据目录。');
+  }
+  localState = {
+    ...localState,
+    schemaVersion: 1,
+    dataDirectory: dataDirectory,
+    onboardingCompleted: true,
+    completedAt: new Date().toISOString(),
+    appVersion: app.getVersion(),
+    updatedAt: new Date().toISOString(),
+  };
+  writeJson(localStateFile, localState);
+  return getOnboardingStatus();
+}
+
+async function switchDataDirectory(target, strategy = 'ask') {
+  const resolvedTarget = path.resolve(target);
+  if (samePath(resolvedTarget, dataDirectory)) {
+    fs.mkdirSync(resolvedTarget, { recursive: true });
+    saveDataLocation(resolvedTarget);
+    migrateEmbeddedSecret(resolvedTarget);
+    return { cancelled: false, ...getDataLocationInfo() };
+  }
+  if (hasConfiguredDataLocation && isPathInside(dataDirectory, resolvedTarget)) {
+    throw new Error('请选择当前数据目录之外的独立文件夹。');
+  }
+
+  let useExisting = strategy === 'use-existing';
+  if (hasBusinessData(resolvedTarget) && strategy === 'ask') {
+    const confirmation = await dialog.showMessageBox(mainWindow, {
+      type: 'question',
+      title: '目标目录已有 Mytimes TTS 数据',
+      message: '请选择如何使用目标目录',
+      detail: '“使用现有数据”会切换到目标目录已有的设置和历史；“复制当前数据”会用当前数据覆盖同名文件，但不会删除目标目录中的其他文件。',
+      buttons: ['使用现有数据', '复制当前数据', '取消'],
+      defaultId: 0,
+      cancelId: 2,
+      noLink: true,
+    });
+    if (confirmation.response === 2) return { cancelled: true, ...getDataLocationInfo() };
+    useExisting = confirmation.response === 0;
+  }
+
+  if (!useExisting && hasConfiguredDataLocation && hasBusinessData(dataDirectory)) {
+    copyBusinessData(dataDirectory, resolvedTarget);
+  }
+  fs.mkdirSync(resolvedTarget, { recursive: true });
+  dataDirectory = resolvedTarget;
+  saveDataLocation(resolvedTarget);
+  migrateEmbeddedSecret(dataDirectory);
+  return { cancelled: false, usedExisting: useExisting, ...getDataLocationInfo() };
 }
 
 function loadHistory() {
@@ -107,13 +413,11 @@ function getHistorySummary() {
 }
 
 function loadSettingsFile() {
-  try {
-    const filePath = getSettingsPath();
-    if (!fs.existsSync(filePath)) return {};
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
-  } catch {
-    return {};
-  }
+  return loadJson(getSettingsPath(), {});
+}
+
+function loadSecretFile() {
+  return loadJson(getSecretPath(), {});
 }
 
 function decryptApiKey(encryptedValue) {
@@ -127,11 +431,11 @@ function decryptApiKey(encryptedValue) {
 
 function getSettings() {
   const stored = loadSettingsFile();
+  const secret = loadSecretFile();
   return {
     ...DEFAULT_SETTINGS,
     ...stored,
-    apiKey: decryptApiKey(stored.apiKeyEncrypted),
-    apiKeyEncrypted: undefined,
+    apiKey: decryptApiKey(secret.apiKeyEncrypted),
   };
 }
 
@@ -147,18 +451,18 @@ function saveSettings(nextSettings) {
     authMode: merged.authMode === 'bearer' ? 'bearer' : 'api-key',
     timeoutSeconds: Math.min(600, Math.max(30, Number(merged.timeoutSeconds) || 180)),
     theme: ['system', 'light', 'dark'].includes(merged.theme) ? merged.theme : 'system',
-    apiKeyEncrypted: '',
   };
 
+  let apiKeyEncrypted = '';
   if (merged.apiKey) {
     if (!safeStorage.isEncryptionAvailable()) {
       throw new Error('系统安全存储当前不可用，API Key 未保存。');
     }
-    fileData.apiKeyEncrypted = safeStorage.encryptString(String(merged.apiKey).trim()).toString('base64');
+    apiKeyEncrypted = safeStorage.encryptString(String(merged.apiKey).trim()).toString('base64');
   }
 
-  fs.mkdirSync(path.dirname(getSettingsPath()), { recursive: true });
-  fs.writeFileSync(getSettingsPath(), JSON.stringify(fileData, null, 2), 'utf8');
+  writeJson(getSettingsPath(), fileData);
+  writeJson(getSecretPath(), { apiKeyEncrypted });
   return getSettings();
 }
 
@@ -366,13 +670,24 @@ function createWindow() {
   });
 
   mainWindow.loadFile(path.join(__dirname, '..', 'app', 'index.html'));
-mainWindow.once('ready-to-show', async () => {
+  mainWindow.once('ready-to-show', async () => {
     mainWindow.show();
     const screenshotPath = process.env.MYT_TTS_SMOKE_SCREENSHOT;
     if (screenshotPath) {
       const page = process.env.MYT_TTS_SMOKE_PAGE;
+      await new Promise((resolve) => setTimeout(resolve, 450));
       if (page === 'settings') await mainWindow.webContents.executeJavaScript("document.getElementById('openSettings').click()");
       if (page === 'history') await mainWindow.webContents.executeJavaScript("document.getElementById('openHistory').click()");
+      if (page === 'onboarding-storage') await mainWindow.webContents.executeJavaScript("document.getElementById('onboardingStart').click()");
+      if (page === 'onboarding-company' || page === 'onboarding-complete-company') {
+        await mainWindow.webContents.executeJavaScript("document.getElementById('onboardingStart').click()");
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        await mainWindow.webContents.executeJavaScript("document.getElementById('onboardingCompanyButton').click()");
+        if (page === 'onboarding-complete-company') {
+          await new Promise((resolve) => setTimeout(resolve, 250));
+          await mainWindow.webContents.executeJavaScript("document.getElementById('onboardingFinish').click()");
+        }
+      }
       await new Promise((resolve) => setTimeout(resolve, 700));
       const image = await mainWindow.webContents.capturePage();
       fs.writeFileSync(screenshotPath, image.toPNG());
@@ -385,6 +700,7 @@ mainWindow.once('ready-to-show', async () => {
 }
 
 app.whenReady().then(() => {
+  migrateLegacyDataIfNeeded();
   ipcMain.handle('app:info', () => ({
     name: app.getName(),
     version: app.getVersion(),
@@ -401,6 +717,32 @@ app.whenReady().then(() => {
     });
     return { ok: Boolean(result?.choices?.[0]?.message) };
   });
+
+  ipcMain.handle('storage:get-location', () => getDataLocationInfo());
+  ipcMain.handle('storage:use-company-location', () => {
+    const company = getCompanyDataDirectoryInfo();
+    if (!company.available) throw new Error('没有检测到公司 Y: 数据目录，请确认已连接 NAS 或选择其他目录。');
+    return switchDataDirectory(company.path, company.hasData ? 'use-existing' : 'copy-current');
+  });
+  ipcMain.handle('storage:choose-location', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: '选择 Mytimes TTS 数据目录',
+      defaultPath: dataDirectory,
+      buttonLabel: '使用此目录',
+      properties: ['openDirectory', 'createDirectory'],
+    });
+    if (result.canceled || !result.filePaths[0]) return { cancelled: true, ...getDataLocationInfo() };
+    return switchDataDirectory(result.filePaths[0]);
+  });
+  ipcMain.handle('storage:reset-location', () => switchDataDirectory(defaultDataDirectory));
+  ipcMain.handle('storage:reveal-location', async () => {
+    fs.mkdirSync(dataDirectory, { recursive: true });
+    const error = await shell.openPath(dataDirectory);
+    if (error) throw new Error(error);
+    return { ok: true };
+  });
+  ipcMain.handle('onboarding:get-status', () => getOnboardingStatus());
+  ipcMain.handle('onboarding:complete', () => completeOnboarding());
 
   ipcMain.handle('style:optimize', async (_event, style) => {
     const sourceStyle = String(style || '').trim();

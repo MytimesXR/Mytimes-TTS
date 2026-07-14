@@ -1,6 +1,6 @@
 {
   "name": "myt-tts-winui",
-  "version": "0.1.3",
+  "version": "0.1.6",
   "description": "MytimesXR Windows desktop client for Xiaomi MiMo TTS",
   "author": "MytimesXR",
   "private": true,

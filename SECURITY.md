@@ -24,9 +24,11 @@ npm run check:packaged
 
 ## API Key 的处理
 
-源码和安装包不提供默认 Key。用户在设置页输入后，应用通过 Electron `safeStorage` 使用 Windows DPAPI 对应的系统能力加密，再保存到当前账户的 Electron 用户数据目录。
+源码和安装包不提供默认 Key。用户在设置页输入后，应用通过 Electron `safeStorage` 使用 Windows DPAPI 加密，并保存在当前数据目录的 `secrets/` 子目录。密钥文件名按电脑和 Windows 用户隔离，因此多台电脑共用 NAS 数据目录时不会相互覆盖 Key。
 
 本机加密不能代替最小权限、额度限制和 Key 轮换。如需统一提供服务，应让客户端访问受控后端代理，不能把共享 Key 写进应用。
+
+初始化引导优先检测 `Y:\【软件插件】\Mytimes-TTS-Data`，不可用时允许选择其他本机或 NAS 目录。EXE 目录不保存运行数据；Windows 用户目录中的 `storage-state.json` 只记录数据路径和引导状态。发布源码时必须确保 `Mytimes-TTS-Data/`、任何位置索引、初始化标记、`settings.json`、`history.json`、`secrets/` 和生成音频未进入仓库。
 
 ## Key 泄露处理
 

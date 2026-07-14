@@ -256,7 +256,7 @@
           <div>
             <p class="eyebrow">PREFERENCES</p>
             <h1>设置</h1>
-            <p class="page-description">管理 MiMo 连接、密钥安全和应用外观。</p>
+            <p class="page-description">管理 MiMo 连接、数据目录、密钥安全和应用外观。</p>
           </div>
           <button id="backToGenerator" class="secondary-button" type="button">返回生成</button>
         </header>
@@ -306,11 +306,25 @@
               <span class="privacy-mark" aria-hidden="true"><svg class="fluent-icon" viewBox="0 0 24 24"><path d="M12 3.5 19 6v5.4c0 4.3-2.9 7.7-7 9.1-4.1-1.4-7-4.8-7-9.1V6l7-2.5Z"></path><path d="M9 12.2 11.1 14l4-4.2"></path></svg></span>
               <div>
                 <h2>本地与私密</h2>
-                <p>正文和复刻样本只发送到当前配置的 API。历史音频保存在这台电脑，不经过 MytimesXR 服务器。</p>
+                <p>正文和复刻样本只发送到当前配置的 API。历史与设置保存在下方数据目录，不经过 MytimesXR 服务器。</p>
               </div>
             </section>
             <section class="panel storage-panel">
-              <div><span class="step-label">STORAGE</span><h2>本地历史</h2></div>
+              <div class="section-heading storage-heading">
+                <div><span class="step-label">DATA LOCATION</span><h2>数据目录</h2></div>
+                <span id="dataLocationBadge" class="result-badge ready">便携</span>
+              </div>
+              <p>设置、历史和生成音频统一保存在这里。</p>
+              <div id="dataLocationPath" class="storage-path" title="">正在读取目录。</div>
+              <div class="storage-actions">
+                <button id="useCompanyDataLocation" class="secondary-button" type="button">使用公司 NAS</button>
+                <button id="chooseDataLocation" class="secondary-button" type="button">选择目录</button>
+                <button id="openDataLocation" class="text-button" type="button">打开目录</button>
+                <button id="resetDataLocation" class="text-button" type="button">恢复默认</button>
+              </div>
+                  <small class="storage-note">EXE 目录始终保持干净；设置、历史和音频只保存在所选目录。电脑本地仅记录目录位置，不保存 Key 或业务数据。</small>
+              <div class="storage-divider" aria-hidden="true"></div>
+              <div><span class="step-label">HISTORY</span><h2>生成历史</h2></div>
               <p id="storageSummary">正在读取本地记录。</p>
               <button id="openHistoryFromSettings" class="text-button" type="button">查看生成历史 →</button>
             </section>
@@ -318,6 +332,77 @@
         </div>
       </section>
     </main>
+  </div>
+
+  <div id="onboardingOverlay" class="onboarding-overlay hidden">
+    <section class="onboarding-shell" role="dialog" aria-modal="true" aria-labelledby="onboardingTitle">
+      <header class="onboarding-header">
+        <div class="onboarding-brand">
+          <img src="../build/icon.png" width="42" height="42" alt="">
+          <div><span class="step-label">MYTIMESXR</span><strong>Mytimes TTS</strong></div>
+        </div>
+        <div class="onboarding-progress" aria-label="初始化进度">
+          <i class="active"></i><i></i><i></i>
+        </div>
+      </header>
+
+      <div id="onboardingWelcome" class="onboarding-step">
+        <p class="eyebrow">WELCOME</p>
+        <h1 id="onboardingTitle">几步完成首次设置</h1>
+        <p class="onboarding-lead">Mytimes TTS 将文字转换为语音，并把设置、历史和音频保存在你选择的数据目录。</p>
+        <div class="onboarding-feature-grid">
+          <article><span>01</span><h2>填写正文</h2><p>输入需要朗读的内容，AI 风格润色不会修改正文。</p></article>
+          <article><span>02</span><h2>选择声音</h2><p>使用预置音色、描述式音色设计或已授权的声音复刻。</p></article>
+          <article><span>03</span><h2>生成与保存</h2><p>试听波形、拖动定位，并保存 WAV 或查看本地历史。</p></article>
+        </div>
+        <div class="onboarding-footer">
+          <span>下一步检查公司 NAS 与配置文件。</span>
+          <button id="onboardingStart" class="generate-button" type="button"><span>开始设置</span></button>
+        </div>
+      </div>
+
+      <div id="onboardingStorage" class="onboarding-step hidden">
+        <p class="eyebrow">DATA LOCATION</p>
+        <h1>选择数据保存位置</h1>
+        <p class="onboarding-lead">配置文件不会进入 GitHub。公司成员可以连接同一个 NAS 目录，共享普通设置和生成历史。</p>
+        <section class="onboarding-company-card">
+          <div class="onboarding-card-head">
+            <div><span class="step-label">RECOMMENDED</span><h2>公司 NAS 数据</h2></div>
+            <span id="onboardingCompanyBadge" class="result-badge idle">检测中</span>
+          </div>
+          <div id="onboardingCompanyPath" class="storage-path">Y:\【软件插件】\Mytimes-TTS-Data</div>
+          <p id="onboardingCompanyDetail">正在检查目录与配置文件。</p>
+          <button id="onboardingCompanyButton" class="generate-button" type="button"><span>使用公司 NAS</span></button>
+        </section>
+        <div class="onboarding-alternatives">
+          <button id="onboardingChooseButton" class="secondary-button" type="button">选择其他目录</button>
+                  <button id="onboardingPortableButton" class="secondary-button" type="button">使用本机文档目录</button>
+        </div>
+        <div class="onboarding-footer">
+          <button id="onboardingBackWelcome" class="text-button" type="button">← 返回介绍</button>
+                  <span>选择一次后会自动记住；只有目录失效或 NAS 断开时才会再次提示。</span>
+        </div>
+      </div>
+
+      <div id="onboardingReady" class="onboarding-step hidden">
+        <span class="onboarding-ready-mark" aria-hidden="true">✓</span>
+        <p class="eyebrow">READY</p>
+        <h1 id="onboardingReadyTitle">数据目录已就绪</h1>
+        <p id="onboardingReadyDetail" class="onboarding-lead">正在检查配置文件与 API Key。</p>
+        <div>
+          <span class="step-label">CURRENT DATA LOCATION</span>
+          <div id="onboardingReadyPath" class="storage-path"></div>
+        </div>
+        <div class="onboarding-key-note">
+          <strong>关于 API Key</strong>
+          <p>NAS 可以共享普通设置和历史，但 API Key 使用 Windows DPAPI 按电脑和用户分别加密；新电脑需要填写一次自己的 Key。</p>
+        </div>
+        <div class="onboarding-footer">
+          <button id="onboardingBackStorage" class="text-button" type="button">← 重新选择</button>
+          <button id="onboardingFinish" class="generate-button" type="button"><span>进入设置</span></button>
+        </div>
+      </div>
+    </section>
   </div>
 
 
