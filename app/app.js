@@ -83,7 +83,7 @@ const elements = {
   voiceConsent: $('#voiceConsent'),
   optimizeReview: $('#optimizeReview'),
   optimizedStyleText: $('#optimizedStyleText'),
-generatorPage: $('#generatorPage'),
+  generatorPage: $('#generatorPage'),
   historyPage: $('#historyPage'),
   settingsPage: $('#settingsPage'),
   historyList: $('#historyList'),
@@ -105,6 +105,14 @@ generatorPage: $('#generatorPage'),
   onboardingReadyDetail: $('#onboardingReadyDetail'),
   onboardingReadyPath: $('#onboardingReadyPath'),
   settingsConnectionBadge: $('#settingsConnectionBadge'),
+  styleOptimizerBadge: $('#styleOptimizerBadge'),
+  styleOptimizerProvider: $('#styleOptimizerProvider'),
+  styleOptimizerFields: $('#styleOptimizerFields'),
+  styleOptimizerBaseUrl: $('#styleOptimizerBaseUrl'),
+  styleOptimizerModel: $('#styleOptimizerModel'),
+  styleOptimizerApiKey: $('#styleOptimizerApiKey'),
+  styleOptimizerTimeoutSeconds: $('#styleOptimizerTimeoutSeconds'),
+  styleOptimizerMessage: $('#styleOptimizerMessage'),
   serviceType: $('#serviceType'),
   baseUrl: $('#baseUrl'),
   apiKey: $('#apiKey'),
@@ -264,6 +272,7 @@ function bindEvents() {
   $('#chooseDataLocation').addEventListener('click', chooseDataLocation);
   $('#openDataLocation').addEventListener('click', openDataLocation);
   $('#resetDataLocation').addEventListener('click', resetDataLocation);
+  $('#resetOnboarding').addEventListener('click', resetOnboardingForDemo);
   $('#onboardingStart').addEventListener('click', () => showOnboardingStep('storage'));
   $('#onboardingBackWelcome').addEventListener('click', () => showOnboardingStep('welcome'));
   $('#onboardingBackStorage').addEventListener('click', () => showOnboardingStep('storage'));
@@ -275,6 +284,8 @@ function bindEvents() {
   $('#saveSettings').addEventListener('click', saveSettings);
   $('#testConnection').addEventListener('click', testConnection);
   $('#toggleApiKey').addEventListener('click', toggleApiKeyVisibility);
+  $('#toggleStyleApiKey').addEventListener('click', toggleStyleApiKeyVisibility);
+  elements.styleOptimizerProvider.addEventListener('change', updateStyleOptimizerUi);
   elements.serviceType.addEventListener('change', () => {
     if (SERVICE_URLS[elements.serviceType.value]) elements.baseUrl.value = SERVICE_URLS[elements.serviceType.value];
   });
@@ -348,6 +359,10 @@ async function optimizeStyle() {
   const style = getStylePrompt();
   if (!style) {
     showToast('先选择标签或填写风格描述。', true);
+    return;
+  }
+  if (state.settings?.styleOptimizerProvider !== 'openai-compatible') {
+    showToast('独立 LLM 润色尚未启用；不会调用 MiMo，也不会消耗小米 Token。', true);
     return;
   }
   const button = $('#optimizeStyle');
@@ -1262,7 +1277,7 @@ function openSettings() {
   populateSettingsForm();
   refreshDataLocationInfo();
   elements.settingsMessage.className = 'settings-message';
-  elements.settingsMessage.textContent = '测试连接会发起一次极小的文本模型请求。';
+  elements.settingsMessage.textContent = '只保存不会调用 MiMo；连接测试会先征求确认，并可能计入 Token 或额度。';
   showPage('settings');
 }
 
@@ -1334,6 +1349,20 @@ async function resetDataLocation() {
   }
 }
 
+async function resetOnboardingForDemo() {
+  const button = $('#resetOnboarding');
+  button.disabled = true;
+  try {
+    state.onboarding = await window.mytApp.onboarding.reset();
+    openOnboarding(state.onboarding);
+    showToast('已重新打开首次引导；数据、设置、历史和 API Key 均未改变。');
+  } catch (error) {
+    showToast('无法重置首次引导：' + error.message, true);
+  } finally {
+    button.disabled = false;
+  }
+}
+
 async function openDataLocation() {
   try {
     await window.mytApp.storage.revealLocation();
@@ -1349,7 +1378,13 @@ function populateSettingsForm() {
   elements.apiKey.value = settings.apiKey || '';
   elements.authMode.value = settings.authMode || 'api-key';
   elements.timeoutSeconds.value = String(settings.timeoutSeconds || 180);
+  elements.styleOptimizerProvider.value = settings.styleOptimizerProvider || 'disabled';
+  elements.styleOptimizerBaseUrl.value = settings.styleOptimizerBaseUrl || 'http://127.0.0.1:8080/v1';
+  elements.styleOptimizerModel.value = settings.styleOptimizerModel || 'gpt-3.5-turbo';
+  elements.styleOptimizerApiKey.value = settings.styleOptimizerApiKey || '';
+  elements.styleOptimizerTimeoutSeconds.value = String(settings.styleOptimizerTimeoutSeconds || 120);
   elements.themeSelect.value = settings.theme || 'system';
+  updateStyleOptimizerUi();
 }
 
 function collectSettingsForm() {
@@ -1359,6 +1394,11 @@ function collectSettingsForm() {
     apiKey: elements.apiKey.value.trim(),
     authMode: elements.authMode.value,
     timeoutSeconds: Number(elements.timeoutSeconds.value),
+    styleOptimizerProvider: elements.styleOptimizerProvider.value,
+    styleOptimizerBaseUrl: elements.styleOptimizerBaseUrl.value.trim(),
+    styleOptimizerModel: elements.styleOptimizerModel.value.trim(),
+    styleOptimizerApiKey: elements.styleOptimizerApiKey.value.trim(),
+    styleOptimizerTimeoutSeconds: Number(elements.styleOptimizerTimeoutSeconds.value),
     theme: elements.themeSelect.value,
   };
 }
@@ -1368,6 +1408,7 @@ async function saveSettings() {
     state.settings = await window.mytApp.settings.save(collectSettingsForm());
     applyTheme(state.settings.theme);
     refreshConnectionStatus();
+    updateStyleOptimizerUi();
     elements.settingsMessage.className = 'settings-message success';
     elements.settingsMessage.textContent = '设置已安全保存。';
     showToast('设置已安全保存。');
@@ -1380,6 +1421,12 @@ async function saveSettings() {
 }
 
 async function testConnection() {
+  const confirmed = await window.mytApp.settings.confirmTest();
+  if (!confirmed) {
+    elements.settingsMessage.className = 'settings-message';
+    elements.settingsMessage.textContent = '已取消测试，没有向 MiMo 发送请求，也没有消耗 Token。';
+    return;
+  }
   const button = $('#testConnection');
   button.disabled = true;
   button.textContent = '正在测试';
@@ -1397,7 +1444,7 @@ async function testConnection() {
     elements.settingsMessage.textContent = error.message;
   } finally {
     button.disabled = false;
-    button.textContent = '保存并测试';
+    button.textContent = '保存并测试（调用 API）';
   }
 }
 
@@ -1408,6 +1455,36 @@ function toggleApiKeyVisibility() {
   button.classList.toggle('is-visible', show);
   button.setAttribute('aria-label', show ? '隐藏 API Key' : '显示 API Key');
   button.title = show ? '隐藏 API Key' : '显示 API Key';
+}
+
+function toggleStyleApiKeyVisibility() {
+  const show = elements.styleOptimizerApiKey.type === 'password';
+  const button = $('#toggleStyleApiKey');
+  elements.styleOptimizerApiKey.type = show ? 'text' : 'password';
+  button.classList.toggle('is-visible', show);
+  button.setAttribute('aria-label', show ? '隐藏润色 API Key' : '显示润色 API Key');
+  button.title = show ? '隐藏润色 API Key' : '显示润色 API Key';
+}
+
+function updateStyleOptimizerUi() {
+  const enabled = elements.styleOptimizerProvider.value === 'openai-compatible';
+  elements.styleOptimizerFields.classList.toggle('is-disabled', !enabled);
+  [
+    elements.styleOptimizerBaseUrl,
+    elements.styleOptimizerModel,
+    elements.styleOptimizerApiKey,
+    elements.styleOptimizerTimeoutSeconds,
+  ].forEach((control) => { control.disabled = !enabled; });
+  elements.styleOptimizerBadge.textContent = enabled ? '独立服务' : '未启用';
+  elements.styleOptimizerBadge.className = enabled ? 'result-badge ready' : 'result-badge idle';
+  elements.styleOptimizerMessage.className = 'settings-message';
+  elements.styleOptimizerMessage.textContent = enabled
+    ? 'AI 润色只会访问上方独立地址，不会读取或使用 Xiaomi MiMo API Key。'
+    : '当前仅使用本地规则整理：零模型请求，零 Token 消耗。';
+  const optimizeButton = $('#optimizeStyle');
+  optimizeButton.title = enabled
+    ? '调用独立配置的 LLM 润色服务'
+    : '请先在设置中启用独立润色服务';
 }
 
 function refreshConnectionStatus() {
