@@ -12,6 +12,7 @@ const ignoredDirectories = new Set([
   'app-release',
   'publish',
   'backups',
+  'project-internal',
 ]);
 
 const forbiddenNames = new Set([
@@ -20,6 +21,7 @@ const forbiddenNames = new Set([
   'storage-state.json',
   'mytimes-tts-data-location.json',
   'mytimes-tts-bootstrap.json',
+  'mytimes-tts-internal.json',
   'electron-builder.env',
 ]);
 

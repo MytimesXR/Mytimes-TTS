@@ -349,7 +349,7 @@
                   <label><span>Cluster</span><input id="volcCluster" type="text" spellcheck="false" placeholder="volcano_tts"></label>
                 </div>
                 <label><span>Access Token</span><div class="password-wrap"><input id="volcAccessToken" type="password" autocomplete="off" placeholder="控制台 Access Token"><button class="password-toggle" type="button" data-password-target="volcAccessToken" aria-label="显示 Access Token" title="显示 Access Token"><svg class="eye-icon eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.6-6 9.5-6 9.5 6 9.5 6-3.6 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.75"></circle></svg><svg class="eye-icon eye-closed" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4 20 20"></path><path d="M3 9s3.2-4 9-4 9 7 9 7a17 17 0 0 1-3 3.4M6 16.2A13 13 0 0 1 3 12"></path></svg></button></div><small>仅保存在当前 Windows 用户的 DPAPI 加密文件中。</small></label>
-                <label><span>默认音色 ID</span><input id="volcVoiceType" type="text" spellcheck="false" placeholder="BV001_streaming"><small>填写公司账号已经开通或购买的 voice_type。</small></label>
+                <label><span>默认音色 ID</span><input id="volcVoiceType" type="text" spellcheck="false" placeholder="BV001_streaming"><small>填写当前火山引擎账号已经开通或购买的 voice_type。</small></label>
                 <div class="settings-grid">
                   <label><span>语速</span><input id="volcSpeedRatio" type="number" min="0.2" max="2" step="0.1" value="1"></label>
                   <label><span>请求超时</span><select id="volcTimeoutSeconds"><option value="60">60 秒</option><option value="180">180 秒</option><option value="300">300 秒</option><option value="600">600 秒</option></select></label>
@@ -426,23 +426,29 @@
               <span class="privacy-mark" aria-hidden="true"><svg class="fluent-icon" viewBox="0 0 24 24"><path d="M12 3.5 19 6v5.4c0 4.3-2.9 7.7-7 9.1-4.1-1.4-7-4.8-7-9.1V6l7-2.5Z"></path><path d="M9 12.2 11.1 14l4-4.2"></path></svg></span>
               <div>
                 <h2>本地与私密</h2>
-                <p>正文和复刻样本只发送到当前配置的 API。历史与设置保存在下方数据目录，不经过 MytimesXR 服务器。</p>
+                <p>正文和复刻样本只发送到当前配置的 API。历史与设置保存在下方数据目录，不经过本应用的其他服务器。</p>
               </div>
             </section>
             <section class="panel storage-panel">
               <div class="section-heading storage-heading">
                 <div><span class="step-label">DATA LOCATION</span><h2>数据目录</h2></div>
-                <span id="dataLocationBadge" class="result-badge ready">便携</span>
+                <span id="dataLocationBadge" class="result-badge ready">本机</span>
               </div>
               <p>设置、历史和生成音频统一保存在这里。</p>
+              <div class="storage-profile-row">
+                <span>当前配置</span>
+                <strong id="appModeLabel">公开版</strong>
+              </div>
               <div id="dataLocationPath" class="storage-path" title="">正在读取目录。</div>
               <div class="storage-actions">
-                <button id="useCompanyDataLocation" class="secondary-button" type="button">使用公司 NAS</button>
                 <button id="chooseDataLocation" class="secondary-button" type="button">选择目录</button>
                 <button id="openDataLocation" class="text-button" type="button">打开目录</button>
                 <button id="resetDataLocation" class="text-button" type="button">恢复默认</button>
               </div>
-                  <small class="storage-note">EXE 目录始终保持干净；设置、历史和音频只保存在所选目录。电脑本地仅记录目录位置，不保存 Key 或业务数据。</small>
+              <div id="internalStorageActions" class="storage-actions hidden">
+                <button id="useCompanyDataLocation" class="secondary-button" type="button">重新读取内部配置</button>
+              </div>
+              <small id="appModeDescription" class="storage-note">公开版只使用你选择的本机或网络数据目录。</small>
               <div class="storage-divider" aria-hidden="true"></div>
               <div><span class="step-label">HISTORY</span><h2>生成历史</h2></div>
               <p id="storageSummary">正在读取本地记录。</p>
@@ -481,32 +487,43 @@
           <article><span>02</span><h2>选择声音</h2><p>使用预置音色、描述式音色设计或已授权的声音复刻。</p></article>
           <article><span>03</span><h2>生成与保存</h2><p>试听波形、拖动定位，并保存 WAV 或查看本地历史。</p></article>
         </div>
-        <div class="onboarding-footer">
-          <span>下一步检查公司 NAS 与配置文件。</span>
-          <button id="onboardingStart" class="generate-button" type="button"><span>开始设置</span></button>
+        <div class="onboarding-edition-grid" aria-label="选择应用配置">
+          <button id="onboardingPublicButton" class="onboarding-edition-card recommended" type="button">
+            <span class="step-label">RECOMMENDED</span>
+            <strong>公开版</strong>
+            <small>使用自己的数据目录和服务凭据，适合个人与公开环境。</small>
+          </button>
+          <button id="onboardingInternalButton" class="onboarding-edition-card" type="button">
+            <span class="step-label">MYTIMESXR</span>
+            <strong>内部设置</strong>
+            <small>仅在主动选择后检测内部配置文件，适合公司设备。</small>
+          </button>
         </div>
       </div>
 
       <div id="onboardingStorage" class="onboarding-step hidden">
         <p class="eyebrow">DATA LOCATION</p>
         <h1>选择数据保存位置</h1>
-        <p class="onboarding-lead">配置文件不会进入 GitHub。公司成员可以连接同一个 NAS 目录，共享普通设置和生成历史。</p>
-        <section class="onboarding-company-card">
+        <p id="onboardingStorageLead" class="onboarding-lead">公开版默认保存在当前 Windows 用户的文档目录，也可以选择其他本机或网络文件夹。</p>
+        <section id="onboardingInternalCard" class="onboarding-company-card hidden">
           <div class="onboarding-card-head">
-            <div><span class="step-label">RECOMMENDED</span><h2>公司 NAS 数据</h2></div>
+            <div><span class="step-label">INTERNAL PROFILE</span><h2>MytimesXR 内部配置</h2></div>
             <span id="onboardingCompanyBadge" class="result-badge idle">检测中</span>
           </div>
-          <div id="onboardingCompanyPath" class="storage-path">Y:\【软件插件】\Mytimes-TTS-Data</div>
-          <p id="onboardingCompanyDetail">正在检查目录与配置文件。</p>
-          <button id="onboardingCompanyButton" class="generate-button" type="button"><span>使用公司 NAS</span></button>
+          <div id="onboardingCompanyPath" class="storage-path">正在检查内部配置文件。</div>
+          <p id="onboardingCompanyDetail">只有有效的 MytimesXR 内部配置文件才能启用此模式。</p>
+          <div class="onboarding-profile-actions">
+            <button id="onboardingCompanyButton" class="generate-button" type="button"><span>使用检测到的配置</span></button>
+            <button id="onboardingChooseProfileButton" class="secondary-button" type="button">手动选择配置文件</button>
+          </div>
         </section>
-        <div class="onboarding-alternatives">
+        <div id="onboardingPublicStorageActions" class="onboarding-alternatives">
           <button id="onboardingChooseButton" class="secondary-button" type="button">选择其他目录</button>
-                  <button id="onboardingPortableButton" class="secondary-button" type="button">使用本机文档目录</button>
+          <button id="onboardingPortableButton" class="secondary-button" type="button">使用本机默认目录</button>
         </div>
         <div class="onboarding-footer">
           <button id="onboardingBackWelcome" class="text-button" type="button">← 返回介绍</button>
-                  <span>选择一次后会自动记住；只有目录失效或 NAS 断开时才会再次提示。</span>
+          <span id="onboardingStorageHint">选择一次后会自动记住；目录失效时才会再次提示。</span>
         </div>
       </div>
 
@@ -521,7 +538,7 @@
         </div>
         <div class="onboarding-key-note">
           <strong>关于 API Key</strong>
-          <p>NAS 可以共享普通设置和历史，但 API Key 使用 Windows DPAPI 按电脑和用户分别加密；新电脑需要填写一次自己的 Key。</p>
+          <p id="onboardingKeyNoteText">API Key 使用 Windows DPAPI 按电脑和用户分别加密，不会写入公开源码或安装包。</p>
         </div>
         <div class="onboarding-footer">
           <button id="onboardingBackStorage" class="text-button" type="button">← 重新选择</button>

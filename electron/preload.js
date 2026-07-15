@@ -24,12 +24,16 @@ contextBridge.exposeInMainWorld('mytApp', {
   storage: {
     getLocation: () => ipcRenderer.invoke('storage:get-location'),
     useCompanyLocation: () => ipcRenderer.invoke('storage:use-company-location'),
+    usePublicDefault: () => ipcRenderer.invoke('storage:use-public-default'),
     chooseLocation: () => ipcRenderer.invoke('storage:choose-location'),
     resetLocation: () => ipcRenderer.invoke('storage:reset-location'),
     revealLocation: () => ipcRenderer.invoke('storage:reveal-location'),
   },
   onboarding: {
     getStatus: () => ipcRenderer.invoke('onboarding:get-status'),
+    setMode: (mode) => ipcRenderer.invoke('onboarding:set-mode', mode),
+    useInternalProfile: () => ipcRenderer.invoke('onboarding:use-internal-profile'),
+    chooseInternalProfile: () => ipcRenderer.invoke('onboarding:choose-internal-profile'),
     complete: () => ipcRenderer.invoke('onboarding:complete'),
     reset: () => ipcRenderer.invoke('onboarding:reset'),
   },

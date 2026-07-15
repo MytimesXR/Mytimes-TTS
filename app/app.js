@@ -119,6 +119,8 @@ const elements = {
   onboardingWelcome: $('#onboardingWelcome'),
   onboardingStorage: $('#onboardingStorage'),
   onboardingReady: $('#onboardingReady'),
+  onboardingInternalCard: $('#onboardingInternalCard'),
+  onboardingStorageLead: $('#onboardingStorageLead'),
   onboardingCompanyBadge: $('#onboardingCompanyBadge'),
   onboardingCompanyPath: $('#onboardingCompanyPath'),
   onboardingCompanyDetail: $('#onboardingCompanyDetail'),
@@ -126,6 +128,9 @@ const elements = {
   onboardingReadyTitle: $('#onboardingReadyTitle'),
   onboardingReadyDetail: $('#onboardingReadyDetail'),
   onboardingReadyPath: $('#onboardingReadyPath'),
+  appModeLabel: $('#appModeLabel'),
+  appModeDescription: $('#appModeDescription'),
+  internalStorageActions: $('#internalStorageActions'),
   settingsConnectionBadge: $('#settingsConnectionBadge'),
   styleOptimizerBadge: $('#styleOptimizerBadge'),
   styleOptimizerProvider: $('#styleOptimizerProvider'),
@@ -335,10 +340,12 @@ function bindEvents() {
   $('#openDataLocation').addEventListener('click', openDataLocation);
   $('#resetDataLocation').addEventListener('click', resetDataLocation);
   $('#resetOnboarding').addEventListener('click', resetOnboardingForDemo);
-  $('#onboardingStart').addEventListener('click', () => showOnboardingStep('storage'));
+  $('#onboardingPublicButton').addEventListener('click', () => selectOnboardingMode('public'));
+  $('#onboardingInternalButton').addEventListener('click', () => selectOnboardingMode('internal'));
   $('#onboardingBackWelcome').addEventListener('click', () => showOnboardingStep('welcome'));
   $('#onboardingBackStorage').addEventListener('click', () => showOnboardingStep('storage'));
   $('#onboardingCompanyButton').addEventListener('click', useOnboardingCompanyLocation);
+  $('#onboardingChooseProfileButton').addEventListener('click', chooseOnboardingInternalProfile);
   $('#onboardingChooseButton').addEventListener('click', chooseOnboardingLocation);
   $('#onboardingPortableButton').addEventListener('click', useOnboardingPortableLocation);
   $('#onboardingFinish').addEventListener('click', finishOnboarding);
@@ -1344,32 +1351,55 @@ function showOnboardingStep(step) {
 }
 
 function renderOnboardingCompany(status) {
-  const company = status.company;
-  elements.onboardingCompanyPath.textContent = company.path;
-  elements.onboardingCompanyPath.title = company.path;
-  elements.onboardingCompanyButton.disabled = !company.available;
+  const profile = status.internalProfile;
+  elements.onboardingCompanyPath.textContent = profile.profilePath;
+  elements.onboardingCompanyPath.title = profile.profilePath;
+  elements.onboardingCompanyButton.disabled = !profile.valid || !profile.available;
 
-  if (!company.available) {
-    elements.onboardingCompanyBadge.textContent = '未连接';
+  if (!profile.exists) {
+    elements.onboardingCompanyBadge.textContent = '未发现';
     elements.onboardingCompanyBadge.className = 'result-badge idle';
-    elements.onboardingCompanyDetail.textContent = '没有检测到 Y: 映射盘或目录不可写，请先连接公司 NAS，或选择其他目录。';
+    elements.onboardingCompanyDetail.textContent = '默认位置没有检测到内部配置文件。连接公司网络后重试，或手动选择管理员提供的 JSON 文件。';
     return;
   }
-
-  elements.onboardingCompanyBadge.textContent = company.hasData ? '发现数据' : '可用';
+  if (!profile.valid || !profile.available) {
+    elements.onboardingCompanyBadge.textContent = '不可用';
+    elements.onboardingCompanyBadge.className = 'result-badge error';
+    elements.onboardingCompanyDetail.textContent = profile.error;
+    return;
+  }
+  elements.onboardingCompanyBadge.textContent = '已验证';
   elements.onboardingCompanyBadge.className = 'result-badge ready';
-  if (company.hasSettings) {
-    elements.onboardingCompanyDetail.textContent = '检测到共享配置文件。使用后会读取公司 Base URL、普通设置和历史；本机 API Key 仍单独加密。';
-  } else if (company.hasData) {
-    elements.onboardingCompanyDetail.textContent = '目录中已有历史或音频，但没有检测到 settings.json；进入后会提醒补充配置。';
-  } else {
-    elements.onboardingCompanyDetail.textContent = '公司目录可访问。首次使用会创建设置、历史、音频和本机加密密钥目录。';
+  elements.onboardingCompanyDetail.textContent = profile.displayName + ' 已通过格式校验，数据目录当前可访问。';
+}
+
+function renderOnboardingMode(status) {
+  const internal = status.appMode === 'internal';
+  elements.onboardingInternalCard.classList.toggle('hidden', !internal);
+  $('#onboardingPublicStorageActions').classList.toggle('hidden', internal);
+  elements.onboardingStorageLead.textContent = internal
+    ? '内部设置只通过外部配置文件定位公司数据目录；配置文件不会打包进公开版本。'
+    : '公开版默认保存在当前 Windows 用户的文档目录，也可以选择其他本机或网络文件夹。';
+  $('#onboardingStorageHint').textContent = internal
+    ? '没有检测到默认配置时，可手动选择管理员提供的内部配置文件。'
+    : '选择一次后会自动记住；目录失效时才会再次提示。';
+}
+
+async function selectOnboardingMode(mode) {
+  try {
+    state.onboarding = await window.mytApp.onboarding.setMode(mode);
+    renderOnboardingCompany(state.onboarding);
+    renderOnboardingMode(state.onboarding);
+    showOnboardingStep('storage');
+  } catch (error) {
+    showToast(error.message, true);
   }
 }
 
 function openOnboarding(status) {
   state.onboarding = status;
   renderOnboardingCompany(status);
+  renderOnboardingMode(status);
   elements.onboardingOverlay.classList.remove('hidden');
   if (status.needsLocationRecovery) {
     showOnboardingStep('storage');
@@ -1383,6 +1413,10 @@ function renderOnboardingReady(status) {
   elements.onboardingReadyPath.textContent = status.current.path;
   elements.onboardingReadyPath.title = status.current.path;
   const finishLabel = $('#onboardingFinish span');
+  const internal = status.appMode === 'internal';
+  $('#onboardingKeyNoteText').textContent = internal
+    ? '内部目录可共享普通设置和历史；API Key 仍使用 Windows DPAPI 按电脑和用户分别加密。'
+    : 'API Key 使用 Windows DPAPI 按电脑和用户分别加密，不会写入公开源码或安装包。';
 
   if (status.currentHasKey) {
     elements.onboardingReadyTitle.textContent = '配置与 API Key 已就绪';
@@ -1416,6 +1450,7 @@ async function applyOnboardingLocation(result) {
 async function runOnboardingLocationAction(action) {
   const buttons = [
     elements.onboardingCompanyButton,
+    $('#onboardingChooseProfileButton'),
     $('#onboardingChooseButton'),
     $('#onboardingPortableButton'),
   ];
@@ -1430,13 +1465,19 @@ async function runOnboardingLocationAction(action) {
   } finally {
     state.onboarding = state.onboarding || await window.mytApp.onboarding.getStatus();
     renderOnboardingCompany(state.onboarding);
+    renderOnboardingMode(state.onboarding);
     $('#onboardingChooseButton').disabled = false;
     $('#onboardingPortableButton').disabled = false;
+    $('#onboardingChooseProfileButton').disabled = false;
   }
 }
 
 function useOnboardingCompanyLocation() {
-  return runOnboardingLocationAction(() => window.mytApp.storage.useCompanyLocation());
+  return runOnboardingLocationAction(() => window.mytApp.onboarding.useInternalProfile());
+}
+
+function chooseOnboardingInternalProfile() {
+  return runOnboardingLocationAction(() => window.mytApp.onboarding.chooseInternalProfile());
 }
 
 function chooseOnboardingLocation() {
@@ -1444,7 +1485,7 @@ function chooseOnboardingLocation() {
 }
 
 function useOnboardingPortableLocation() {
-  return runOnboardingLocationAction(() => window.mytApp.storage.resetLocation());
+  return runOnboardingLocationAction(() => window.mytApp.storage.usePublicDefault());
 }
 
 async function finishOnboarding() {
@@ -1474,6 +1515,12 @@ function updateDataLocationUi() {
   if (!info) return;
   elements.dataLocationPath.textContent = info.path;
   elements.dataLocationPath.title = info.path;
+  const internal = state.onboarding?.appMode === 'internal' || info.appMode === 'internal';
+  elements.appModeLabel.textContent = internal ? 'MytimesXR 内部设置' : '公开版';
+  elements.appModeDescription.textContent = internal
+    ? '内部设置由外部配置文件定位数据目录；API Key 仍只对当前 Windows 用户可用。'
+    : '公开版只使用你选择的本机或网络数据目录。';
+  elements.internalStorageActions.classList.toggle('hidden', !internal);
   if (!info.configured) {
     elements.dataLocationBadge.textContent = '待选择';
     elements.dataLocationBadge.className = 'result-badge idle';
@@ -1486,7 +1533,10 @@ function updateDataLocationUi() {
 
 async function refreshDataLocationInfo() {
   try {
-    state.dataLocation = await window.mytApp.storage.getLocation();
+    [state.dataLocation, state.onboarding] = await Promise.all([
+      window.mytApp.storage.getLocation(),
+      window.mytApp.onboarding.getStatus(),
+    ]);
     updateDataLocationUi();
   } catch (error) {
     showToast('无法读取数据目录：' + error.message, true);

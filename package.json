@@ -1,7 +1,7 @@
 {
   "name": "myt-tts-winui",
-  "version": "0.2.0",
-  "description": "MytimesXR multi-provider desktop text-to-speech client",
+  "version": "0.2.1",
+  "description": "Multi-provider desktop text-to-speech client for Windows",
   "author": "MytimesXR",
   "private": true,
   "main": "electron/main.js",

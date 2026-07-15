@@ -16,7 +16,6 @@
 ## 继续开发
 
 - [项目首页与开发命令](../README.md)
-- [多引擎改造实时跟进](MULTI_TTS_INTEGRATION_PLAN.md)
 - [macOS 与 Android 跨平台路线](CROSS_PLATFORM_ROADMAP.md)
 
 ## 当前交付边界

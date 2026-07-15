@@ -8,7 +8,7 @@
 - `.env`、`settings.json`、`history.json`。
 - 用户正文、生成历史、参考人声音频和生成的 WAV/MP3。
 - Windows、Apple 或 Android 签名证书、私钥和密码。
-- 含个人用户名、公司内网地址或本机目录的日志与截图。
+- 含个人用户名、组织内网地址或本机目录的日志与截图。
 
 提交前运行：
 
@@ -28,7 +28,7 @@ npm run check:packaged
 
 本机加密不能代替最小权限、额度限制和 Key 轮换。如需统一提供服务，应让客户端访问受控后端代理，不能把共享 Key 写进应用。
 
-初始化引导优先检测 `Y:\【软件插件】\Mytimes-TTS-Data`，不可用时允许选择其他本机或 NAS 目录。EXE 目录不保存运行数据；Windows 用户目录中的 `storage-state.json` 只记录数据路径和引导状态。发布源码时必须确保 `Mytimes-TTS-Data/`、任何位置索引、初始化标记、`settings.json`、`history.json`、`secrets/` 和生成音频未进入仓库。
+公开版初始化不会检测组织内部目录，允许选择本机或可信网络目录。EXE 目录不保存运行数据；Windows 用户目录中的 `storage-state.json` 只记录运行模式、数据路径和引导状态。发布源码时必须确保 `Mytimes-TTS-Data/`、位置索引、初始化标记、`settings.json`、`history.json`、`secrets/` 和生成音频未进入仓库。
 
 ## Key 泄露处理
 

@@ -20,7 +20,7 @@ README.md
 SECURITY.md
 ```
 
-不要上传 `release/`、`backups/`、`node_modules/`、`Mytimes-TTS-Data/`、`storage-state.json`、旧版数据位置指针、初始化标记、本机设置、API Key、生成历史、用户音频、日志、个人路径或签名证书。
+不要上传 `release/`、`backups/`、`node_modules/`、`Mytimes-TTS-Data/`、`Mytimes-TTS-Internal.json`、内部项目文档、`storage-state.json`、本机设置、API Key、历史、用户音频、日志、个人路径或签名证书。
 
 每次提交前运行：
 

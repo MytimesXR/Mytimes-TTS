@@ -68,7 +68,8 @@ const DATA_DIRECTORY_NAME = 'Mytimes-TTS-Data';
 const LEGACY_DATA_LOCATION_FILE = 'Mytimes-TTS-data-location.json';
 const LEGACY_ONBOARDING_FILE = 'Mytimes-TTS-bootstrap.json';
 const LOCAL_STATE_FILE = 'storage-state.json';
-const COMPANY_DATA_DIRECTORY = 'Y:\\【软件插件】\\Mytimes-TTS-Data';
+const INTERNAL_PROFILE_FILE = 'Mytimes-TTS-Internal.json';
+const DEFAULT_INTERNAL_PROFILE_PATH = 'Y:\\【软件插件】\\Mytimes-TTS-Data\\Mytimes-TTS-Internal.json';
 
 function getExecutableDirectory() {
   if (!app.isPackaged) return path.resolve(__dirname, '..');
@@ -89,8 +90,71 @@ const localStateFile = path.resolve(
 let localState = {};
 let hasConfiguredDataLocation = false;
 
-function getCompanyDataDirectory() {
-  return path.resolve(process.env.MYT_TTS_COMPANY_DATA_DIR || COMPANY_DATA_DIRECTORY);
+function getDefaultInternalProfilePath() {
+  return path.resolve(process.env.MYT_TTS_INTERNAL_PROFILE || DEFAULT_INTERNAL_PROFILE_PATH);
+}
+
+function getAppMode() {
+  return localState.appMode === 'internal' ? 'internal' : localState.appMode === 'public' ? 'public' : '';
+}
+
+function getInternalProfileInfo(profilePath = '') {
+  const resolvedProfilePath = path.resolve(profilePath || getDefaultInternalProfilePath());
+  const result = {
+    profilePath: resolvedProfilePath,
+    fileName: INTERNAL_PROFILE_FILE,
+    exists: fs.existsSync(resolvedProfilePath),
+    valid: false,
+    available: false,
+    dataDirectory: '',
+    displayName: 'MytimesXR 内部配置',
+    error: '',
+  };
+  if (!result.exists) {
+    result.error = '未找到内部配置文件。';
+    return result;
+  }
+  const profile = loadJson(resolvedProfilePath, null);
+  if (!profile || typeof profile !== 'object') {
+    result.error = '内部配置文件不是有效的 JSON。';
+    return result;
+  }
+  if (profile.profileType !== 'mytimesxr-internal' || profile.organization !== 'MytimesXR') {
+    result.error = '该文件不是有效的 MytimesXR 内部配置。';
+    return result;
+  }
+  if (Number(profile.schemaVersion) !== 1 || typeof profile.dataDirectory !== 'string' || !profile.dataDirectory.trim()) {
+    result.error = '内部配置缺少受支持的数据目录设置。';
+    return result;
+  }
+  const rawDirectory = profile.dataDirectory.trim();
+  const resolvedDataDirectory = path.isAbsolute(rawDirectory)
+    ? path.resolve(rawDirectory)
+    : path.resolve(path.dirname(resolvedProfilePath), rawDirectory);
+  const access = getDirectoryAccessInfo(resolvedDataDirectory);
+  result.valid = true;
+  result.available = access.available;
+  result.dataDirectory = resolvedDataDirectory;
+  result.displayName = String(profile.displayName || result.displayName);
+  if (!access.available) result.error = '内部数据目录当前不可访问或不可写。';
+  return result;
+}
+
+function saveAppMode(mode, profilePath = '') {
+  if (!['public', 'internal'].includes(mode)) throw new Error('不支持的应用模式。');
+  localState = loadJson(localStateFile, localState);
+  localState = {
+    ...localState,
+    schemaVersion: 2,
+    appMode: mode,
+    onboardingCompleted: false,
+    updatedAt: new Date().toISOString(),
+  };
+  delete localState.completedAt;
+  if (mode === 'internal') localState.internalProfilePath = path.resolve(profilePath || getDefaultInternalProfilePath());
+  else delete localState.internalProfilePath;
+  writeJson(localStateFile, localState);
+  return getOnboardingStatus();
 }
 
 function readConfiguredDataDirectory() {
@@ -100,6 +164,13 @@ function readConfiguredDataDirectory() {
   }
 
   localState = loadJson(localStateFile, {});
+  if (localState.appMode === 'internal') {
+    const internalProfile = getInternalProfileInfo(localState.internalProfilePath);
+    if (internalProfile.valid) {
+      hasConfiguredDataLocation = true;
+      return internalProfile.dataDirectory;
+    }
+  }
   if (localState?.dataDirectory) {
     hasConfiguredDataLocation = true;
     return path.resolve(String(localState.dataDirectory));
@@ -119,8 +190,9 @@ function readConfiguredDataDirectory() {
 
   if (migratedDirectory) {
     localState = {
-      schemaVersion: 1,
+      schemaVersion: 2,
       dataDirectory: migratedDirectory,
+      appMode: 'public',
       onboardingCompleted: legacyOnboarding.completed === true,
       migratedFromLegacyPortable: true,
       updatedAt: new Date().toISOString(),
@@ -271,7 +343,7 @@ function saveDataLocation(target) {
   hasConfiguredDataLocation = true;
   localState = {
     ...localState,
-    schemaVersion: 1,
+    schemaVersion: 2,
     dataDirectory: path.resolve(target),
     updatedAt: new Date().toISOString(),
   };
@@ -290,18 +362,7 @@ function getDataLocationInfo() {
     available: access.available,
     persistence: 'windows-user-index',
     legacyDataCopied,
-  };
-}
-
-function getCompanyDataDirectoryInfo() {
-  const companyPath = getCompanyDataDirectory();
-  const access = getDirectoryAccessInfo(companyPath);
-  return {
-    path: companyPath,
-    available: access.available,
-    exists: access.exists,
-    hasData: hasBusinessData(companyPath),
-    hasSettings: fs.existsSync(getSettingsPath(companyPath)),
+    appMode: getAppMode(),
   };
 }
 
@@ -310,15 +371,35 @@ function getOnboardingStatus() {
   const current = getDataLocationInfo();
   const completed = localState.onboardingCompleted === true;
   const settings = getSettings();
+  const appMode = getAppMode();
+  // Public mode stays independent from organization storage. Only inspect the
+  // internal profile after the user explicitly selects the internal edition.
+  const internalProfile = appMode === 'internal'
+    ? getInternalProfileInfo(localState.internalProfilePath)
+    : {
+        profilePath: '',
+        fileName: INTERNAL_PROFILE_FILE,
+        exists: false,
+        valid: false,
+        available: false,
+        dataDirectory: '',
+        displayName: 'MytimesXR 内部配置',
+        error: '',
+      };
+  const internalUnavailable = appMode === 'internal' && (!internalProfile.valid || !internalProfile.available);
   return {
     shouldShow: process.env.MYT_TTS_FORCE_ONBOARDING === '1'
       || !completed
+      || !appMode
       || !current.configured
       || !current.exists
-      || !current.available,
+      || !current.available
+      || internalUnavailable,
     completed,
-    needsLocationRecovery: completed && (!current.exists || !current.available),
-    company: getCompanyDataDirectoryInfo(),
+    appMode,
+    modeSelected: Boolean(appMode),
+    needsLocationRecovery: completed && (!current.exists || !current.available || internalUnavailable),
+    internalProfile,
     current,
     currentHasSettings: fs.existsSync(getSettingsPath()),
     currentHasHistory: fs.existsSync(getHistoryPath()),
@@ -328,12 +409,18 @@ function getOnboardingStatus() {
 
 function completeOnboarding() {
   const current = getDataLocationInfo();
+  const appMode = getAppMode();
+  if (!appMode) throw new Error('请先选择公开版或 MytimesXR 内部设置。');
+  if (appMode === 'internal') {
+    const internalProfile = getInternalProfileInfo(localState.internalProfilePath);
+    if (!internalProfile.valid || !internalProfile.available) throw new Error(internalProfile.error || '内部配置当前不可用。');
+  }
   if (!current.configured || !current.exists || !current.available) {
     throw new Error('请先选择一个当前可用的数据目录。');
   }
   localState = {
     ...localState,
-    schemaVersion: 1,
+    schemaVersion: 2,
     dataDirectory: dataDirectory,
     onboardingCompleted: true,
     completedAt: new Date().toISOString(),
@@ -348,13 +435,23 @@ function resetOnboarding() {
   localState = loadJson(localStateFile, localState);
   localState = {
     ...localState,
-    schemaVersion: 1,
+    schemaVersion: 2,
     onboardingCompleted: false,
     updatedAt: new Date().toISOString(),
   };
   delete localState.completedAt;
+  delete localState.appMode;
+  delete localState.internalProfilePath;
   writeJson(localStateFile, localState);
   return getOnboardingStatus();
+}
+
+async function useInternalProfile(profilePath = '') {
+  const profile = getInternalProfileInfo(profilePath);
+  if (!profile.valid || !profile.available) throw new Error(profile.error || '内部配置当前不可用。');
+  saveAppMode('internal', profile.profilePath);
+  const result = await switchDataDirectory(profile.dataDirectory, 'use-existing');
+  return { ...result, appMode: 'internal', internalProfile: profile };
 }
 
 async function switchDataDirectory(target, strategy = 'ask') {
@@ -837,11 +934,11 @@ function createWindow() {
       await new Promise((resolve) => setTimeout(resolve, 450));
       if (page === 'settings') await mainWindow.webContents.executeJavaScript("document.getElementById('openSettings').click()");
       if (page === 'history') await mainWindow.webContents.executeJavaScript("document.getElementById('openHistory').click()");
-      if (page === 'onboarding-storage') await mainWindow.webContents.executeJavaScript("document.getElementById('onboardingStart').click()");
+      if (page === 'onboarding-storage') await mainWindow.webContents.executeJavaScript("document.getElementById('onboardingPublicButton').click()");
       if (page === 'onboarding-company' || page === 'onboarding-complete-company') {
-        await mainWindow.webContents.executeJavaScript("document.getElementById('onboardingStart').click()");
+        await mainWindow.webContents.executeJavaScript("document.getElementById('onboardingInternalButton').click()");
         await new Promise((resolve) => setTimeout(resolve, 150));
-        await mainWindow.webContents.executeJavaScript("document.getElementById('onboardingCompanyButton').click()");
+        await mainWindow.webContents.executeJavaScript("if (!document.getElementById('onboardingCompanyButton').disabled) document.getElementById('onboardingCompanyButton').click()");
         if (page === 'onboarding-complete-company') {
           await new Promise((resolve) => setTimeout(resolve, 250));
           await mainWindow.webContents.executeJavaScript("document.getElementById('onboardingFinish').click()");
@@ -882,7 +979,7 @@ app.whenReady().then(() => {
         ? '连接测试会用火山引擎合成“连接测试”'
         : '连接测试会调用一次 Xiaomi MiMo 文本模型',
       detail: isVolcengine
-        ? '这会产生一次很短的语音合成请求，可能计入公司账号用量。只点击“保存设置”不会产生请求。'
+        ? '这会产生一次很短的语音合成请求，可能计入当前火山引擎账号用量。只点击“保存设置”不会产生请求。'
         : '这是一条很小的请求，但仍可能计入你的个人账号 Token 或额度。只点击“保存设置”不会产生请求。',
       buttons: ['继续测试', '取消'],
       defaultId: 1,
@@ -897,9 +994,12 @@ app.whenReady().then(() => {
 
   ipcMain.handle('storage:get-location', () => getDataLocationInfo());
   ipcMain.handle('storage:use-company-location', () => {
-    const company = getCompanyDataDirectoryInfo();
-    if (!company.available) throw new Error('没有检测到公司 Y: 数据目录，请确认已连接 NAS 或选择其他目录。');
-    return switchDataDirectory(company.path, company.hasData ? 'use-existing' : 'copy-current');
+    if (getAppMode() !== 'internal') throw new Error('公开版不会读取内部配置。请重新运行首次设置并选择 MytimesXR 内部设置。');
+    return useInternalProfile(localState.internalProfilePath);
+  });
+  ipcMain.handle('storage:use-public-default', () => {
+    if (getAppMode() !== 'public') throw new Error('请先选择公开版。');
+    return switchDataDirectory(defaultDataDirectory, 'use-existing');
   });
   ipcMain.handle('storage:choose-location', async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
@@ -919,6 +1019,19 @@ app.whenReady().then(() => {
     return { ok: true };
   });
   ipcMain.handle('onboarding:get-status', () => getOnboardingStatus());
+  ipcMain.handle('onboarding:set-mode', (_event, mode) => saveAppMode(String(mode || '')));
+  ipcMain.handle('onboarding:use-internal-profile', () => useInternalProfile(localState.internalProfilePath));
+  ipcMain.handle('onboarding:choose-internal-profile', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: '选择 MytimesXR 内部配置文件',
+      defaultPath: localState.internalProfilePath || getDefaultInternalProfilePath(),
+      buttonLabel: '使用此配置',
+      properties: ['openFile'],
+      filters: [{ name: 'Mytimes TTS internal profile', extensions: ['json'] }],
+    });
+    if (result.canceled || !result.filePaths[0]) return { cancelled: true, ...getDataLocationInfo() };
+    return useInternalProfile(result.filePaths[0]);
+  });
   ipcMain.handle('onboarding:complete', () => completeOnboarding());
   ipcMain.handle('onboarding:reset', () => resetOnboarding());
 

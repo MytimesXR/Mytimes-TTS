@@ -1,7 +1,7 @@
-# Mytimes TTS 项目计划
+# Mytimes TTS 公开路线
 
-当前开发、测试、阻塞项和下一步任务统一维护在：
+- Windows：维护 Portable EXE 与 ZIP，持续完善多引擎、隐私和无障碍体验。
+- macOS：完成真机回归、签名和公证后再提供公开构建。
+- Android：复用 Provider 与数据协议，单独实现移动端界面和安全存储。
 
-- [多引擎改造实时跟进](docs/MULTI_TTS_INTEGRATION_PLAN.md)
-
-该文档是对话中断后的任务恢复入口。完成关键代码、测试、打包或 NAS 同步后必须同步更新。
+当前功能与变更见 [README](README.md) 和 [更新记录](CHANGELOG.md)。

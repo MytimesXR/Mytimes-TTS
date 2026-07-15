@@ -1,141 +1,88 @@
-<p align="center">
-  <img src="build/icon.png" width="96" height="96" alt="Mytimes TTS 图标">
-</p>
+<p align="center"><img src="build/icon.png" width="96" height="96" alt="Mytimes TTS 图标"></p>
 
 <h1 align="center">Mytimes TTS</h1>
 
-<p align="center">
-  面向 Windows 的多引擎桌面文字转语音工具。
-</p>
+<p align="center">面向 Windows 的多引擎桌面文字转语音客户端。</p>
 
-Mytimes TTS 是 MytimesXR 制作的 Electron 桌面应用，支持 Xiaomi MiMo、火山引擎、GPT-SoVITS 和 IndexTTS2，并提供授权声音复刻、波形播放、本地历史与音频导出。
+Mytimes TTS 支持 Xiaomi MiMo、火山引擎、GPT-SoVITS 和 IndexTTS2，并提供预置音色、音色设计、授权声音复刻、波形播放、本地历史和音频导出。
 
-> 本项目不是 Xiaomi、MiMo、火山引擎、GPT-SoVITS 或 IndexTTS2 的官方客户端。模型能力、许可、额度、价格、内容政策和服务可用性以各项目或服务官方说明为准。
+> 本项目不是上述模型或服务的官方客户端。
 
-## 项目状态
+## 平台支持
 
 | 平台 | 状态 | 说明 |
 |---|---|---|
-| Windows x64 | 当前支持 | 提供 Portable EXE 与 ZIP |
-| macOS | 未来支持 | 尚未作为公开下载版本发布，需完成真机回归、签名与公证 |
-| Android | 未来规划 | Electron 不能直接导出 APK，需要单独适配移动端容器 |
-
+| Windows x64 | 当前支持 | Portable EXE 与 ZIP |
+| macOS | 未来支持 | 待完成真机回归、签名与公证 |
+| Android | 未来规划 | 需要单独适配移动端 |
 ## 主要功能
 
-- Xiaomi MiMo 预置音色与自然语言演绎风格。
-- 在生成页切换 MiMo、火山引擎、GPT-SoVITS 和 IndexTTS2。
-- 火山引擎使用公司账号已开通的音色 ID；云端测试会先显示费用确认。
-- GPT-SoVITS 与 IndexTTS2 通过本地 HTTP 服务接入，模型和权重不打包进 EXE。
-- 本地“规则整理”只整理风格描述，不调用模型、零 Token 消耗。
-- 可选 AI 风格润色使用单独配置的 llama.cpp / OpenAI 兼容接口，不修改正文，也不会借用 MiMo API Key。
-- 使用年龄、音高、节奏、质感和角色等特征设计音色。
-- 上传或拖入 WAV/MP3 参考音频进行授权声音复刻。
-- 音频波形、点击或拖动定位、播放暂停和另存为。
-- 本地生成历史、重新生成、单条删除和批量清理。
-- 首次启动通过初始化引导检测公司 NAS、配置文件和本机 API Key。
-- 默认推荐 `Y:\【软件插件】\Mytimes-TTS-Data`，不可用时可选择其他目录或本机“文档\Mytimes-TTS-Data”。
-- Portable EXE 目录保持干净；首次选择后会自动记住，只有数据目录失效时才重新提示。
-- 支持标准 API、Token Plan 和自定义兼容地址。
-- API Key 通过 Windows DPAPI 按电脑和用户加密，不以明文写入共享设置。
+- 在 MiMo、火山引擎、GPT-SoVITS 和 IndexTTS2 之间切换。
+- 使用预置音色、音色设计或已授权参考音频生成语音。
+- 本地模型权重不进入应用包。
+- 波形播放、点击或拖动定位、音频另存和本地历史。
+- 本地“规则整理”不调用模型。
+- AI 润色使用独立的 llama.cpp / OpenAI 兼容接口。
+- 数据目录可使用本机、移动硬盘、映射盘或可信网络目录。
+- API Key 通过 Windows DPAPI 按电脑和用户加密。
 
-## 下载
+## 下载与开始使用
+从 [GitHub Releases](https://github.com/MytimesXR/Mytimes-TTS/releases) 下载 Portable EXE，或完整解压 ZIP 后运行其中的 `Mytimes TTS.exe`。
 
-请在 [GitHub Releases](https://github.com/MytimesXR/Mytimes-TTS/releases) 下载 Windows x64 版本：
+首次启动：
 
-- `Portable` EXE：推荐，下载后直接运行。
-- Windows x64 ZIP：解压后运行其中的 `Mytimes TTS.exe`。
+1. 选择“公开版（推荐）”。
+2. 使用默认数据目录，或选择自己的目录。
+3. 在“设置”中选择引擎，填写服务地址和凭据。
+4. “保存设置”不会调用 API；测试连接会先提示可能产生费用。
+5. 返回“语音生成”，选择引擎、声音模式并填写正文。
 
-当前 Windows 构建可能尚未完成正式代码签名。请只从本仓库 Releases 下载，并核对发布页提供的文件信息。
+Portable EXE 旁不会自动产生配置文件，运行数据都位于所选目录。
+## 数据与隐私
 
-## 快速开始
+- 仓库和安装包不包含默认 Key、用户设置、历史或音频。
+- 数据只发送到当前选择的服务。
+- 本地引擎默认连接 `127.0.0.1`。
+- AI 润色默认关闭，且不会复用 TTS Key。
+- 应用没有账号系统、广告 SDK、云同步或主动遥测。
+- 网络目录可以顺序共享，但不建议多台电脑同时写入同一份历史。
 
-1. 从 [Releases](https://github.com/MytimesXR/Mytimes-TTS/releases) 下载 Windows x64 版本。
-2. 首次启动按引导了解基本流程，并选择公司 NAS、其他目录或本机文档数据目录。
-3. 引导会检测 `settings.json` 和这台电脑可用的加密 API Key；缺少时自动进入设置页。
-4. 在设置中选择语音引擎并填写对应连接信息；只保存不调用接口，云端测试会先提示可能产生费用。
-5. 返回“语音生成”，选择引擎以及它支持的预置音色、音色设计或音色复刻。
-6. 填写待朗读正文并生成语音。
+详见 [隐私说明](docs/PRIVACY_NOTICE.md)。
 
-初始化完成后，Windows 会在当前用户的应用数据目录中保存一个不含业务数据的目录索引。以后直接打开同一个 EXE 即可；只有 NAS 断开、目录被移动或删除时才会重新提示。仍可在“设置 → 数据目录”中一键使用公司 NAS，或选择其他映射盘和网络文件夹。不要在多台电脑上同时写入同一个历史目录。
-
-完整步骤见：
-
-- [安装与使用教程](docs/INSTALL_AND_USE.md)
-- [MiMo API Key 获取与配置](docs/MIMO_API_KEY_GUIDE.md)
-- [多语音引擎配置](docs/MULTI_ENGINE_GUIDE.md)
-- [隐私说明](docs/PRIVACY_NOTICE.md)
-
-## API Key 与隐私
-
-- 仓库、安装包和自动构建流程不包含默认 API Key。
-- 每位用户需要填写自己有权使用的 Xiaomi MiMo API Key。
-- 设置、历史和生成音频只位于用户选择的数据目录；EXE 旁不会自动生成配置文件或数据文件夹。
-- Windows 本地目录索引不包含 API Key、正文、历史、音频或普通应用设置。
-- Windows 使用 DPAPI 按电脑和用户保护 Key；NAS 上的其他电脑需要分别填写自己的 Key。
-- 正文、风格描述和声音复刻样本只发送到用户当前选择并配置的语音服务；本地引擎默认连接 127.0.0.1。
-- AI 润色默认关闭；启用后只把风格描述发送到单独配置的润色服务，绝不自动回退到 MiMo。
-- 当前应用没有 MytimesXR 账号、广告 SDK、云同步或主动遥测上报。
-- 本地生成历史和应用保存的 WAV 副本不会主动上传到 MytimesXR。
-
-详细数据处理方式见 [隐私说明](docs/PRIVACY_NOTICE.md)。
-
-## 声音复刻使用规则
-
-只能使用本人声音，或已经取得明确、有效授权的声音。不得将本项目用于冒充、诈骗、骚扰、未经同意的公开传播或其他违法、侵权活动。
+## 声音复刻规则
+只能使用本人声音，或已经取得明确、有效授权的声音。不得用于冒充、诈骗、骚扰、未经同意的传播或其他违法、侵权活动。
 
 ## 本地开发
-
-需要 Node.js LTS 和 npm：
 
 ```powershell
 npm ci
 npm start
-```
-
-Windows 构建：
-
-```powershell
 npm run dist
-```
-
-发布前检查：
-
-```powershell
 npm run check:public
 npm run check:packaged
 ```
-
-macOS 与 Android 的后续适配计划见 [跨平台路线](docs/CROSS_PLATFORM_ROADMAP.md)。
-
 ## 文档
 
-- [安装与使用教程](docs/INSTALL_AND_USE.md)
-- [MiMo API Key 获取教程](docs/MIMO_API_KEY_GUIDE.md)
-- [火山引擎与本地模型配置](docs/MULTI_ENGINE_GUIDE.md)
+- [安装与使用](docs/INSTALL_AND_USE.md)
+- [MiMo API Key 教程](docs/MIMO_API_KEY_GUIDE.md)
+- [多语音引擎配置](docs/MULTI_ENGINE_GUIDE.md)
 - [隐私说明](docs/PRIVACY_NOTICE.md)
 - [安全政策](SECURITY.md)
-- [跨平台路线与 Android 评估](docs/CROSS_PLATFORM_ROADMAP.md)
+- [跨平台路线](docs/CROSS_PLATFORM_ROADMAP.md)
 - [更新记录](CHANGELOG.md)
 
 ## 问题反馈
 
-普通问题和功能建议可以通过 GitHub Issues 提交。请勿在公开 Issue、截图或日志中包含 API Key、用户正文、声音样本、生成音频或其他隐私信息。
-
-安全问题请按照 [安全政策](SECURITY.md) 私下报告，不要公开披露可利用细节。
-
+普通问题和建议可通过 GitHub Issues 提交。请勿公开 API Key、正文、声音样本、音频或其他隐私。安全问题请按安全政策私下报告。
 ## 许可
 
-本仓库公开可见不代表已经授予开源许可。当前项目未附带 `LICENSE`，除适用法律或平台条款另有要求外，未授予复制、修改、再分发或商业使用许可。
+本仓库公开可见不代表已授予开源许可。当前未附带 `LICENSE`；如需接受外部贡献、修改或再分发，应由项目所有者先确定许可证。
 
 Copyright © MytimesXR. All rights reserved.
 
 ## 官方资料
 
-- [Xiaomi MiMo 首次 API 调用](https://mimo.mi.com/docs/zh-CN/quick-start/summary/first-api-call)
-- [Xiaomi MiMo API Key 常见问题](https://mimo.mi.com/docs/zh-CN/quick-start/faq/api-integration)
-- [Xiaomi MiMo 语音合成指南](https://mimo.mi.com/docs/zh-CN/usage-guide/speech-synthesis)
-- [火山引擎语音合成 API 列表](https://www.volcengine.com/docs/6561/2228192)
-- [GPT-SoVITS 官方项目](https://github.com/RVC-Boss/GPT-SoVITS)
-- [IndexTTS2 官方项目](https://github.com/index-tts/index-tts)
-- [llama.cpp OpenAI 兼容服务器](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md)
-- [Electron 官方文档](https://www.electronjs.org/docs/latest)
+- [Xiaomi MiMo 语音合成](https://mimo.mi.com/docs/zh-CN/usage-guide/speech-synthesis)
+- [火山引擎语音合成 API](https://www.volcengine.com/docs/6561/2228192)
+- [GPT-SoVITS](https://github.com/RVC-Boss/GPT-SoVITS)
+- [IndexTTS2](https://github.com/index-tts/index-tts)

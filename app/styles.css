@@ -590,13 +590,14 @@ textarea:focus {
 }
 
 .provider-button {
+  position: relative;
   min-width: 0;
   min-height: 58px;
   padding: 9px 10px;
   display: flex;
   align-items: center;
   gap: 9px;
-  border: 1px solid transparent;
+  border: 1px solid var(--line);
   border-radius: var(--control-radius);
   color: var(--muted);
   background: var(--control-fill);
@@ -612,9 +613,9 @@ textarea:focus {
 
 .provider-button.active {
   color: var(--text);
-  border-color: var(--accent);
-  background: var(--panel-solid);
-  box-shadow: inset 0 -2px var(--accent);
+  border-color: var(--line-strong);
+  background: var(--control-hover);
+  box-shadow: inset 3px 0 var(--accent);
 }
 
 .provider-button strong,
@@ -1439,19 +1440,19 @@ textarea:focus-visible {
 .settings-provider-tabs {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
+  gap: 4px;
   margin: 18px 0;
   padding: 5px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background: var(--surface-muted);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--overlay-radius);
+  background: var(--control-fill);
 }
 
 .settings-provider-tab {
   min-height: 38px;
-  border: 0;
-  border-radius: 7px;
-  color: var(--text-secondary);
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  color: var(--muted);
   background: transparent;
   font: inherit;
   font-weight: 650;
@@ -1459,14 +1460,16 @@ textarea:focus-visible {
 }
 
 .settings-provider-tab:hover {
-  color: var(--text-primary);
-  background: var(--surface);
+  color: var(--text);
+  border-color: var(--line-strong);
+  background: var(--control-hover);
 }
 
 .settings-provider-tab.active {
   color: var(--accent-strong);
-  background: var(--surface);
-  box-shadow: inset 0 0 0 1px var(--border-strong);
+  border-color: var(--line-strong);
+  background: var(--panel-solid);
+  box-shadow: inset 0 -2px var(--accent), var(--shadow);
 }
 
 .settings-provider-panel {
@@ -1482,7 +1485,7 @@ textarea:focus-visible {
 .emotion-vector-grid label {
   display: grid;
   gap: 5px;
-  color: var(--text-secondary);
+  color: var(--muted);
   font-size: 12px;
 }
 
@@ -2524,7 +2527,7 @@ button:focus-visible,
   margin-top: 9px;
   padding: 9px 10px;
   overflow-wrap: anywhere;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: var(--control-radius);
   color: var(--text);
   background: var(--control-fill);
@@ -2559,7 +2562,7 @@ button:focus-visible,
 .storage-divider {
   height: 1px;
   margin: 16px 0;
-  background: var(--border);
+  background: var(--line);
 }
 
 .onboarding-overlay {
@@ -2569,7 +2572,7 @@ button:focus-visible,
   display: grid;
   place-items: center;
   padding: 28px;
-  background: color-mix(in srgb, var(--app-bg) 88%, transparent);
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter: blur(14px);
 }
 
@@ -2578,8 +2581,8 @@ button:focus-visible,
   max-height: calc(100vh - 56px);
   overflow: auto;
   padding: 26px 30px 30px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--panel-radius);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
   color: var(--text);
   background: var(--panel);
   box-shadow: var(--shadow);
@@ -2602,7 +2605,7 @@ button:focus-visible,
 
 .onboarding-header {
   padding-bottom: 22px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--line);
 }
 
 .onboarding-brand {
@@ -2628,7 +2631,7 @@ button:focus-visible,
   width: 22px;
   height: 3px;
   border-radius: 2px;
-  background: var(--border-strong);
+  background: var(--line-strong);
 }
 
 .onboarding-progress i.active {
@@ -2661,9 +2664,9 @@ button:focus-visible,
   gap: 1px;
   margin-top: 26px;
   overflow: hidden;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: var(--control-radius);
-  background: var(--border);
+  background: var(--line);
 }
 
 .onboarding-feature-grid article {
@@ -2703,7 +2706,7 @@ button:focus-visible,
 .onboarding-company-card {
   margin-top: 24px;
   padding: 20px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line-strong);
   border-radius: var(--control-radius);
   background: var(--control-fill);
 }
@@ -2750,6 +2753,85 @@ button:focus-visible,
   background: var(--control-fill);
 }
 
+.onboarding-edition-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 24px;
+}
+
+.onboarding-edition-card {
+  min-height: 116px;
+  padding: 17px 18px;
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--overlay-radius);
+  color: var(--text);
+  background: var(--control-fill);
+  cursor: pointer;
+  text-align: left;
+  transition: background 120ms ease, border-color 120ms ease, transform 80ms ease;
+}
+
+.onboarding-edition-card:hover {
+  border-color: var(--accent);
+  background: var(--control-hover);
+}
+
+.onboarding-edition-card:active {
+  transform: translateY(1px);
+}
+
+.onboarding-edition-card.recommended {
+  box-shadow: inset 3px 0 var(--accent);
+}
+
+.onboarding-edition-card strong {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.onboarding-edition-card small {
+  max-width: 46ch;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.onboarding-profile-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.onboarding-profile-actions .generate-button {
+  margin-top: 0;
+}
+
+.storage-profile-row {
+  margin: 12px 0 8px;
+  padding: 9px 11px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  background: var(--control-fill);
+  font-size: 12px;
+}
+
+.storage-profile-row span {
+  color: var(--muted);
+}
+
+.storage-profile-row strong {
+  font-weight: 600;
+}
+
 .onboarding-key-note strong {
   display: block;
   margin-bottom: 4px;
@@ -2771,6 +2853,10 @@ button:focus-visible,
   }
 
   .onboarding-feature-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .onboarding-edition-grid {
     grid-template-columns: 1fr;
   }
 
