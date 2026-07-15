@@ -6,11 +6,19 @@ out/
 app-release/
 publish/
 backups/
+old/
+project-internal/
 .electron-builder-cache/
 
 # Local app data, generation history and audio
+Mytimes-TTS-Data/
+Mytimes-TTS-data-location.json
+Mytimes-TTS-bootstrap.json
+Mytimes-TTS-Internal.json
+storage-state.json
 settings.json
 history.json
+secrets/
 generated/
 output/
 *.wav
@@ -18,6 +26,13 @@ output/
 *.m4a
 *.flac
 *.pcm
+local-gateway/.venv/
+local-gateway/__pycache__/
+local-gateway/checkpoints/
+local-gateway/models/
+local-gateway/**/*.pth
+local-gateway/**/*.ckpt
+local-gateway/**/*.safetensors
 
 # Secrets, environment files and signing credentials
 .env
