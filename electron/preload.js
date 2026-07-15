@@ -14,7 +14,12 @@ contextBridge.exposeInMainWorld('mytApp', {
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),
     save: (settings) => ipcRenderer.invoke('settings:save', settings),
+    confirmTest: (providerId) => ipcRenderer.invoke('settings:confirm-test', providerId),
     test: () => ipcRenderer.invoke('settings:test'),
+  },
+  providers: {
+    list: () => ipcRenderer.invoke('providers:list'),
+    test: (providerId) => ipcRenderer.invoke('providers:test', providerId),
   },
   storage: {
     getLocation: () => ipcRenderer.invoke('storage:get-location'),
@@ -26,6 +31,7 @@ contextBridge.exposeInMainWorld('mytApp', {
   onboarding: {
     getStatus: () => ipcRenderer.invoke('onboarding:get-status'),
     complete: () => ipcRenderer.invoke('onboarding:complete'),
+    reset: () => ipcRenderer.invoke('onboarding:reset'),
   },
   tts: {
     generate: (payload) => ipcRenderer.invoke('tts:generate', payload),

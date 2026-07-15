@@ -8,9 +8,18 @@ const expectedEntries = new Set([
   'app/app.js',
   'app/index.html',
   'app/styles.css',
+  'build',
+  'build/icon.png',
   'electron',
   'electron/main.js',
   'electron/preload.js',
+  'electron/providers',
+  'electron/providers/mimo-provider.js',
+  'electron/providers/volcengine-provider.js',
+  'electron/providers/gpt-sovits-provider.js',
+  'electron/providers/index-tts2-provider.js',
+  'electron/providers/provider-registry.js',
+  'electron/providers/provider-types.js',
   'package.json',
 ]);
 
@@ -20,6 +29,12 @@ const textEntries = [
   'app/styles.css',
   'electron/main.js',
   'electron/preload.js',
+  'electron/providers/mimo-provider.js',
+  'electron/providers/volcengine-provider.js',
+  'electron/providers/gpt-sovits-provider.js',
+  'electron/providers/index-tts2-provider.js',
+  'electron/providers/provider-registry.js',
+  'electron/providers/provider-types.js',
   'package.json',
 ];
 
@@ -60,7 +75,8 @@ function auditArchive(archivePath) {
   }
 
   for (const entry of textEntries) {
-    const source = asar.extractFile(archivePath, entry).toString('utf8');
+    const archiveEntry = entry.split('/').join(path.sep);
+    const source = asar.extractFile(archivePath, archiveEntry).toString('utf8');
     for (const check of secretChecks) {
       check.pattern.lastIndex = 0;
       if (check.pattern.test(source)) throw new Error(`${archivePath}/${entry}：${check.name}`);

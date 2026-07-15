@@ -3,6 +3,12 @@ const fs = require('fs');
 const crypto = require('crypto');
 const os = require('os');
 const path = require('path');
+const { createMimoProvider } = require('./providers/mimo-provider');
+const { createVolcengineProvider } = require('./providers/volcengine-provider');
+const { createGptSovitsProvider } = require('./providers/gpt-sovits-provider');
+const { createIndexTts2Provider } = require('./providers/index-tts2-provider');
+const { ProviderRegistry } = require('./providers/provider-registry');
+const { getProviderCatalog, normalizeProviderId } = require('./providers/provider-types');
 
 const DEFAULT_SETTINGS = Object.freeze({
   serviceType: 'standard',
@@ -10,10 +16,53 @@ const DEFAULT_SETTINGS = Object.freeze({
   authMode: 'api-key',
   apiKey: '',
   timeoutSeconds: 180,
+  styleOptimizerProvider: 'disabled',
+  styleOptimizerBaseUrl: 'http://127.0.0.1:8080/v1',
+  styleOptimizerModel: 'gpt-3.5-turbo',
+  styleOptimizerApiKey: '',
+  styleOptimizerTimeoutSeconds: 120,
+  volcBaseUrl: 'https://openspeech.bytedance.com/api/v1/tts',
+  volcAppId: '',
+  volcAccessToken: '',
+  volcCluster: 'volcano_tts',
+  volcVoiceType: 'BV001_streaming',
+  volcSpeedRatio: 1,
+  volcTimeoutSeconds: 180,
+  gptSovitsBaseUrl: 'http://127.0.0.1:9880',
+  gptSovitsApiKey: '',
+  gptSovitsTargetLanguage: 'zh',
+  gptSovitsReferenceLanguage: 'zh',
+  gptSovitsReferenceText: '',
+  gptSovitsTextSplitMethod: 'cut5',
+  gptSovitsTimeoutSeconds: 180,
+  indexTts2BaseUrl: 'http://127.0.0.1:9872',
+  indexTts2ApiKey: '',
+  indexTts2EmotionMode: 'text',
+  indexTts2EmotionAlpha: 0.6,
+  indexTts2UseRandom: false,
+  indexTts2TimeoutSeconds: 600,
   theme: 'system',
 });
 
 const activeRequests = new Map();
+const providerRegistry = new ProviderRegistry();
+providerRegistry.register(createMimoProvider({
+  getSettings: () => getSettings(),
+  activeRequests,
+}));
+providerRegistry.register(createVolcengineProvider({
+  getSettings: () => getSettings(),
+  activeRequests,
+}));
+providerRegistry.register(createGptSovitsProvider({
+  getSettings: () => getSettings(),
+  activeRequests,
+  getTempDirectory: () => path.join(app.getPath('temp'), 'Mytimes-TTS'),
+}));
+providerRegistry.register(createIndexTts2Provider({
+  getSettings: () => getSettings(),
+  activeRequests,
+}));
 let mainWindow = null;
 const DATA_DIRECTORY_NAME = 'Mytimes-TTS-Data';
 const LEGACY_DATA_LOCATION_FILE = 'Mytimes-TTS-data-location.json';
@@ -295,6 +344,19 @@ function completeOnboarding() {
   return getOnboardingStatus();
 }
 
+function resetOnboarding() {
+  localState = loadJson(localStateFile, localState);
+  localState = {
+    ...localState,
+    schemaVersion: 1,
+    onboardingCompleted: false,
+    updatedAt: new Date().toISOString(),
+  };
+  delete localState.completedAt;
+  writeJson(localStateFile, localState);
+  return getOnboardingStatus();
+}
+
 async function switchDataDirectory(target, strategy = 'ask') {
   const resolvedTarget = path.resolve(target);
   if (samePath(resolvedTarget, dataDirectory)) {
@@ -365,13 +427,15 @@ function toPublicHistoryEntry(entry) {
     style: entry.style,
     voice: entry.voice,
     voiceDesign: entry.voiceDesign,
+    provider: normalizeProviderId(entry.provider),
+    model: String(entry.model || ''),
     duration: entry.duration,
     bytes: entry.bytes,
     filePath: entry.filePath,
   };
 }
 
-function saveGeneratedHistory(payload, audioBase64) {
+function saveGeneratedHistory(payload, audioBase64, metadata = {}) {
   const audioBuffer = Buffer.from(audioBase64, 'base64');
   const id = crypto.randomUUID();
   const audioDir = getGeneratedAudioDir();
@@ -387,6 +451,8 @@ function saveGeneratedHistory(payload, audioBase64) {
     style: String(payload.style || ''),
     voice: payload.mode === 'preset' ? String(payload.voice || 'mimo_default') : '',
     voiceDesign: payload.mode === 'design' ? String(payload.voiceDesign || '') : '',
+    provider: normalizeProviderId(metadata.provider || payload.provider),
+    model: String(metadata.model || ''),
     duration: getWavDuration(audioBuffer),
     bytes: audioBuffer.length,
     filePath,
@@ -436,6 +502,10 @@ function getSettings() {
     ...DEFAULT_SETTINGS,
     ...stored,
     apiKey: decryptApiKey(secret.apiKeyEncrypted),
+    styleOptimizerApiKey: decryptApiKey(secret.styleOptimizerApiKeyEncrypted),
+    volcAccessToken: decryptApiKey(secret.volcAccessTokenEncrypted),
+    gptSovitsApiKey: decryptApiKey(secret.gptSovitsApiKeyEncrypted),
+    indexTts2ApiKey: decryptApiKey(secret.indexTts2ApiKeyEncrypted),
   };
 }
 
@@ -450,19 +520,54 @@ function saveSettings(nextSettings) {
     baseUrl: String(merged.baseUrl || DEFAULT_SETTINGS.baseUrl).trim(),
     authMode: merged.authMode === 'bearer' ? 'bearer' : 'api-key',
     timeoutSeconds: Math.min(600, Math.max(30, Number(merged.timeoutSeconds) || 180)),
+    styleOptimizerProvider: merged.styleOptimizerProvider === 'openai-compatible' ? 'openai-compatible' : 'disabled',
+    styleOptimizerBaseUrl: String(merged.styleOptimizerBaseUrl || DEFAULT_SETTINGS.styleOptimizerBaseUrl).trim(),
+    styleOptimizerModel: String(merged.styleOptimizerModel || DEFAULT_SETTINGS.styleOptimizerModel).trim(),
+    styleOptimizerTimeoutSeconds: Math.min(600, Math.max(15, Number(merged.styleOptimizerTimeoutSeconds) || 120)),
+    volcBaseUrl: String(merged.volcBaseUrl || DEFAULT_SETTINGS.volcBaseUrl).trim(),
+    volcAppId: String(merged.volcAppId || '').trim(),
+    volcCluster: String(merged.volcCluster || DEFAULT_SETTINGS.volcCluster).trim(),
+    volcVoiceType: String(merged.volcVoiceType || DEFAULT_SETTINGS.volcVoiceType).trim(),
+    volcSpeedRatio: Math.min(2, Math.max(0.2, Number(merged.volcSpeedRatio) || 1)),
+    volcTimeoutSeconds: Math.min(600, Math.max(30, Number(merged.volcTimeoutSeconds) || 180)),
+    gptSovitsBaseUrl: String(merged.gptSovitsBaseUrl || DEFAULT_SETTINGS.gptSovitsBaseUrl).trim(),
+    gptSovitsTargetLanguage: String(merged.gptSovitsTargetLanguage || 'zh').trim(),
+    gptSovitsReferenceLanguage: String(merged.gptSovitsReferenceLanguage || 'zh').trim(),
+    gptSovitsReferenceText: String(merged.gptSovitsReferenceText || '').trim(),
+    gptSovitsTextSplitMethod: String(merged.gptSovitsTextSplitMethod || 'cut5').trim(),
+    gptSovitsTimeoutSeconds: Math.min(600, Math.max(15, Number(merged.gptSovitsTimeoutSeconds) || 180)),
+    indexTts2BaseUrl: String(merged.indexTts2BaseUrl || DEFAULT_SETTINGS.indexTts2BaseUrl).trim(),
+    indexTts2EmotionMode: ['text', 'vector', 'reference'].includes(merged.indexTts2EmotionMode)
+      ? merged.indexTts2EmotionMode
+      : 'text',
+    indexTts2EmotionAlpha: Math.min(1, Math.max(0,
+      Number.isFinite(Number(merged.indexTts2EmotionAlpha)) ? Number(merged.indexTts2EmotionAlpha) : 0.6)),
+    indexTts2UseRandom: Boolean(merged.indexTts2UseRandom),
+    indexTts2TimeoutSeconds: Math.min(1800, Math.max(15, Number(merged.indexTts2TimeoutSeconds) || 600)),
     theme: ['system', 'light', 'dark'].includes(merged.theme) ? merged.theme : 'system',
   };
 
-  let apiKeyEncrypted = '';
-  if (merged.apiKey) {
+  const secretValues = {
+    apiKeyEncrypted: merged.apiKey,
+    styleOptimizerApiKeyEncrypted: merged.styleOptimizerApiKey,
+    volcAccessTokenEncrypted: merged.volcAccessToken,
+    gptSovitsApiKeyEncrypted: merged.gptSovitsApiKey,
+    indexTts2ApiKeyEncrypted: merged.indexTts2ApiKey,
+  };
+  if (Object.values(secretValues).some(Boolean)) {
     if (!safeStorage.isEncryptionAvailable()) {
       throw new Error('系统安全存储当前不可用，API Key 未保存。');
     }
-    apiKeyEncrypted = safeStorage.encryptString(String(merged.apiKey).trim()).toString('base64');
+  }
+  const encryptedSecrets = {};
+  for (const [field, value] of Object.entries(secretValues)) {
+    encryptedSecrets[field] = value
+      ? safeStorage.encryptString(String(value).trim()).toString('base64')
+      : '';
   }
 
   writeJson(getSettingsPath(), fileData);
-  writeJson(getSecretPath(), { apiKeyEncrypted });
+  writeJson(getSecretPath(), encryptedSecrets);
   return getSettings();
 }
 
@@ -543,6 +648,59 @@ async function postToMimo(body, requestId) {
   } finally {
     clearTimeout(timeout);
     if (requestId) activeRequests.delete(requestId);
+  }
+}
+
+function buildStyleOptimizerHeaders(settings) {
+  const headers = { 'Content-Type': 'application/json' };
+  const apiKey = String(settings.styleOptimizerApiKey || '').trim();
+  if (apiKey) headers.Authorization = `Bearer ${apiKey}`;
+  return headers;
+}
+
+function formatStyleOptimizerError(status, rawText) {
+  const detail = extractErrorText(rawText);
+  const prefix = status === 404
+    ? '没有找到润色接口，请检查地址是否包含 /v1。'
+    : status === 401
+      ? '润色服务认证失败，请检查独立润色 API Key。'
+      : `润色服务请求失败（${status}）。`;
+  return detail && detail !== '[object Object]' ? `${prefix}\n${detail}` : prefix;
+}
+
+async function postToStyleOptimizer(messages) {
+  const settings = getSettings();
+  if (settings.styleOptimizerProvider !== 'openai-compatible') {
+    throw new Error('尚未配置独立 LLM 润色服务。规则整理不会调用任何模型。');
+  }
+  const controller = new AbortController();
+  const timeoutMs = Math.max(15, Number(settings.styleOptimizerTimeoutSeconds) || 120) * 1000;
+  const timeout = setTimeout(() => controller.abort('timeout'), timeoutMs);
+  try {
+    const response = await fetch(normalizeEndpoint(settings.styleOptimizerBaseUrl), {
+      method: 'POST',
+      headers: buildStyleOptimizerHeaders(settings),
+      body: JSON.stringify({
+        model: String(settings.styleOptimizerModel || DEFAULT_SETTINGS.styleOptimizerModel).trim(),
+        messages,
+        max_tokens: 300,
+        temperature: 0.3,
+        stream: false,
+      }),
+      signal: controller.signal,
+    });
+    const rawText = await response.text();
+    if (!response.ok) throw new Error(formatStyleOptimizerError(response.status, rawText));
+    try {
+      return JSON.parse(rawText);
+    } catch {
+      throw new Error('润色服务返回了无法解析的数据。');
+    }
+  } catch (error) {
+    if (error?.name === 'AbortError') throw new Error('润色服务请求超时，请检查本地模型是否已经启动。');
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
 }
 
@@ -659,6 +817,7 @@ function createWindow() {
       ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 14, y: 16 } }
       : { frame: false }),
     title: 'Mytimes TTS',
+    icon: path.join(__dirname, '..', 'build', 'icon.png'),
     backgroundColor: '#eef3f8',
     show: false,
     webPreferences: {
@@ -708,14 +867,32 @@ app.whenReady().then(() => {
   }));
   ipcMain.handle('settings:get', () => getSettings());
   ipcMain.handle('settings:save', (_event, settings) => saveSettings(settings));
-  ipcMain.handle('settings:test', async () => {
-    const result = await postToMimo({
-      model: 'mimo-v2.5',
-      messages: [{ role: 'user', content: '只回复 OK' }],
-      max_completion_tokens: 8,
-      temperature: 0,
+  ipcMain.handle('providers:list', () => getProviderCatalog(providerRegistry.ids()));
+  ipcMain.handle('providers:test', (_event, providerId) => {
+    const provider = providerRegistry.get(normalizeProviderId(providerId));
+    if (typeof provider.testConnection !== 'function') throw new Error('该语音引擎不支持连接测试。');
+    return provider.testConnection();
+  });
+  ipcMain.handle('settings:confirm-test', async (_event, providerId) => {
+    const isVolcengine = normalizeProviderId(providerId) === 'volcengine';
+    const result = await dialog.showMessageBox(mainWindow, {
+      type: 'question',
+      title: isVolcengine ? '确认测试火山引擎连接' : '确认测试 MiMo 连接',
+      message: isVolcengine
+        ? '连接测试会用火山引擎合成“连接测试”'
+        : '连接测试会调用一次 Xiaomi MiMo 文本模型',
+      detail: isVolcengine
+        ? '这会产生一次很短的语音合成请求，可能计入公司账号用量。只点击“保存设置”不会产生请求。'
+        : '这是一条很小的请求，但仍可能计入你的个人账号 Token 或额度。只点击“保存设置”不会产生请求。',
+      buttons: ['继续测试', '取消'],
+      defaultId: 1,
+      cancelId: 1,
+      noLink: true,
     });
-    return { ok: Boolean(result?.choices?.[0]?.message) };
+    return result.response === 0;
+  });
+  ipcMain.handle('settings:test', async () => {
+    return providerRegistry.get('mimo').testConnection();
   });
 
   ipcMain.handle('storage:get-location', () => getDataLocationInfo());
@@ -743,23 +920,18 @@ app.whenReady().then(() => {
   });
   ipcMain.handle('onboarding:get-status', () => getOnboardingStatus());
   ipcMain.handle('onboarding:complete', () => completeOnboarding());
+  ipcMain.handle('onboarding:reset', () => resetOnboarding());
 
   ipcMain.handle('style:optimize', async (_event, style) => {
     const sourceStyle = String(style || '').trim();
     if (!sourceStyle) throw new Error('请先填写或选择风格描述。');
-    const result = await postToMimo({
-      model: 'mimo-v2.5',
-      messages: [
-        {
-          role: 'system',
-          content: '你是 MiMo TTS 演绎指导编辑。只优化用户提供的声音演绎风格，不生成、不引用、不修改任何待朗读正文。请输出 JSON，字段 optimized_style 是 1 至 3 句可直接放入 TTS user 消息的中文自然语言指令，字段 warnings 是字符串数组。不要输出 JSON 以外的内容。',
-        },
-        { role: 'user', content: sourceStyle },
-      ],
-      response_format: { type: 'json_object' },
-      max_completion_tokens: 300,
-      temperature: 0.3,
-    });
+    const result = await postToStyleOptimizer([
+      {
+        role: 'system',
+        content: '你是文字转语音的演绎指导编辑。只优化用户提供的声音演绎风格，不生成、不引用、不修改任何待朗读正文。请输出 JSON，字段 optimized_style 是 1 至 3 句可直接作为 TTS 风格指令的中文自然语言，字段 warnings 是字符串数组。不要输出 JSON 以外的内容。',
+      },
+      { role: 'user', content: sourceStyle },
+    ]);
     const content = result?.choices?.[0]?.message?.content;
     if (!content) throw new Error('AI 没有返回风格描述。');
     try {
@@ -774,16 +946,17 @@ app.whenReady().then(() => {
   });
 
   ipcMain.handle('tts:generate', async (_event, payload) => {
-    const result = await postToMimo(buildTtsBody(payload), payload.requestId);
-    const audio = result?.choices?.[0]?.message?.audio?.data;
-    if (!audio) throw new Error('MiMo API 没有返回音频数据。');
+    const providerId = normalizeProviderId(payload?.provider);
+    const provider = providerRegistry.get(providerId);
+    const normalizedPayload = { ...payload, provider: providerId };
+    const result = await provider.generate(normalizedPayload);
     let historyEntry = null;
     try {
-      historyEntry = saveGeneratedHistory(payload, audio);
+      historyEntry = saveGeneratedHistory(normalizedPayload, result.audio, result);
     } catch (error) {
       console.error('[History] Unable to save generated audio:', error.message);
     }
-    return { audio, format: 'wav', historyEntry };
+    return { ...result, historyEntry };
   });
 
   ipcMain.handle('tts:cancel', (_event, requestId) => {

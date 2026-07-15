@@ -1,11 +1,12 @@
 {
   "name": "myt-tts-winui",
-  "version": "0.1.6",
-  "description": "MytimesXR Windows desktop client for Xiaomi MiMo TTS",
+  "version": "0.2.0",
+  "description": "MytimesXR multi-provider desktop text-to-speech client",
   "author": "MytimesXR",
   "private": true,
   "main": "electron/main.js",
   "scripts": {
+    "icons": "electron scripts/render-icons.js",
     "start": "electron .",
     "check:public": "node scripts/audit-public-package.js",
     "check:packaged": "node scripts/audit-packaged-app.js release",
@@ -29,6 +30,7 @@
     "files": [
       "electron/**/*",
       "app/**/*",
+      "build/icon.png",
       "package.json"
     ],
     "win": {

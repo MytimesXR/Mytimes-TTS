@@ -18,8 +18,23 @@ const SERVICE_URLS = {
   'token-plan': 'https://token-plan-cn.xiaomimimo.com/v1',
 };
 
+const MIMO_VOICES = [
+  ['mimo_default', 'MiMo 默认 · 自动匹配集群'],
+  ['冰糖', '冰糖 · 清亮自然'],
+  ['茉莉', '茉莉 · 温柔细腻'],
+  ['苏打', '苏打 · 青年男声'],
+  ['白桦', '白桦 · 沉稳男声'],
+  ['Mia', 'Mia'],
+  ['Chloe', 'Chloe'],
+  ['Milo', 'Milo'],
+  ['Dean', 'Dean'],
+];
+
 const state = {
   mode: 'preset',
+  provider: 'mimo',
+  providers: [],
+  settingsProvider: 'mimo',
   currentPage: 'generator',
   appInfo: null,
   history: [],
@@ -83,6 +98,13 @@ const elements = {
   voiceConsent: $('#voiceConsent'),
   optimizeReview: $('#optimizeReview'),
   optimizedStyleText: $('#optimizedStyleText'),
+  providerStatusBadge: $('#providerStatusBadge'),
+  providerStatusDetail: $('#providerStatusDetail'),
+  voicePanelHelper: $('#voicePanelHelper'),
+  voiceSelectLabel: $('#voiceSelectLabel'),
+  gptReferenceTextRow: $('#gptReferenceTextRow'),
+  gptReferenceText: $('#gptReferenceText'),
+  indexEmotionVectorRow: $('#indexEmotionVectorRow'),
   generatorPage: $('#generatorPage'),
   historyPage: $('#historyPage'),
   settingsPage: $('#settingsPage'),
@@ -118,6 +140,26 @@ const elements = {
   apiKey: $('#apiKey'),
   authMode: $('#authMode'),
   timeoutSeconds: $('#timeoutSeconds'),
+  volcBaseUrl: $('#volcBaseUrl'),
+  volcAppId: $('#volcAppId'),
+  volcAccessToken: $('#volcAccessToken'),
+  volcCluster: $('#volcCluster'),
+  volcVoiceType: $('#volcVoiceType'),
+  volcSpeedRatio: $('#volcSpeedRatio'),
+  volcTimeoutSeconds: $('#volcTimeoutSeconds'),
+  gptSovitsBaseUrl: $('#gptSovitsBaseUrl'),
+  gptSovitsApiKey: $('#gptSovitsApiKey'),
+  gptSovitsTargetLanguage: $('#gptSovitsTargetLanguage'),
+  gptSovitsReferenceLanguage: $('#gptSovitsReferenceLanguage'),
+  gptSovitsReferenceText: $('#gptSovitsReferenceText'),
+  gptSovitsTextSplitMethod: $('#gptSovitsTextSplitMethod'),
+  gptSovitsTimeoutSeconds: $('#gptSovitsTimeoutSeconds'),
+  indexTts2BaseUrl: $('#indexTts2BaseUrl'),
+  indexTts2ApiKey: $('#indexTts2ApiKey'),
+  indexTts2EmotionMode: $('#indexTts2EmotionMode'),
+  indexTts2EmotionAlpha: $('#indexTts2EmotionAlpha'),
+  indexTts2UseRandom: $('#indexTts2UseRandom'),
+  indexTts2TimeoutSeconds: $('#indexTts2TimeoutSeconds'),
   themeSelect: $('#themeSelect'),
   settingsMessage: $('#settingsMessage'),
   connectionDot: $('#connectionDot'),
@@ -131,16 +173,20 @@ async function initialize() {
   applyPlatformUi();
   bindEvents();
   setMode(state.mode);
-  const [settings, appInfo, dataLocation, onboarding] = await Promise.all([
+  const [settings, appInfo, dataLocation, onboarding, providers] = await Promise.all([
     window.mytApp.settings.get(),
     window.mytApp.app.getInfo(),
     window.mytApp.storage.getLocation(),
     window.mytApp.onboarding.getStatus(),
+    window.mytApp.providers.list(),
   ]);
   state.settings = settings;
   state.appInfo = appInfo;
   state.dataLocation = dataLocation;
   state.onboarding = onboarding;
+  state.providers = providers;
+  renderProviderSwitcher();
+  setProvider('mimo', { silent: true });
   elements.appVersion.textContent = `v${appInfo.version}`;
   populateSettingsForm();
   updateDataLocationUi();
@@ -169,7 +215,13 @@ function bindEvents() {
 
   const modeButtons = $$('.mode-button');
   modeButtons.forEach((button, index) => {
-    button.addEventListener('click', () => setMode(button.dataset.mode));
+    button.addEventListener('click', () => {
+      if (button.classList.contains('is-unsupported')) {
+        showToast('当前语音引擎不支持这个生成模式。', true);
+        return;
+      }
+      setMode(button.dataset.mode);
+    });
     button.addEventListener('keydown', (event) => {
       if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
       event.preventDefault();
@@ -181,6 +233,16 @@ function bindEvents() {
       modeButtons[nextIndex].focus();
       modeButtons[nextIndex].click();
     });
+  });
+
+  $$('.provider-button').forEach((button) => {
+    button.addEventListener('click', () => setProvider(button.dataset.provider));
+  });
+  $$('.settings-provider-tab').forEach((button) => {
+    button.addEventListener('click', () => setSettingsProvider(button.dataset.settingsProvider));
+  });
+  $$('[data-password-target]').forEach((button) => {
+    button.addEventListener('click', () => togglePasswordField(button));
   });
 
   $$('#styleChips button').forEach((button) => {
@@ -286,6 +348,7 @@ function bindEvents() {
   $('#toggleApiKey').addEventListener('click', toggleApiKeyVisibility);
   $('#toggleStyleApiKey').addEventListener('click', toggleStyleApiKeyVisibility);
   elements.styleOptimizerProvider.addEventListener('change', updateStyleOptimizerUi);
+  elements.indexTts2EmotionMode.addEventListener('change', updateIndexEmotionControls);
   elements.serviceType.addEventListener('change', () => {
     if (SERVICE_URLS[elements.serviceType.value]) elements.baseUrl.value = SERVICE_URLS[elements.serviceType.value];
   });
@@ -314,6 +377,8 @@ function applyPlatformUi() {
 
 function setMode(mode) {
   if (!MODE_META[mode]) return;
+  const provider = getProviderMeta();
+  if (provider && !provider.capabilities?.[mode]) return;
   state.mode = mode;
   $$('.mode-button').forEach((button) => {
     const active = button.dataset.mode === mode;
@@ -326,7 +391,120 @@ function setMode(mode) {
   elements.clonePanel.classList.toggle('hidden', mode !== 'clone');
   elements.stylePanel.classList.toggle('hidden', mode === 'design');
   elements.pageDescription.textContent = MODE_META[mode].description;
-  setStatus('准备就绪', MODE_META[mode].status, 'ready');
+  setStatus('准备就绪', getProviderModeStatus(mode), 'ready');
+}
+
+function getProviderMeta(providerId = state.provider) {
+  return state.providers.find((provider) => provider.id === providerId) || null;
+}
+
+function getProviderLabel(providerId) {
+  return getProviderMeta(providerId)?.label || 'Xiaomi MiMo';
+}
+
+function getProviderModeStatus(mode = state.mode) {
+  const provider = getProviderMeta();
+  const action = {
+    preset: '预置音色',
+    design: '音色设计',
+    clone: '声音复刻',
+  }[mode] || '语音生成';
+  return (provider?.label || 'Xiaomi MiMo') + ' · ' + action;
+}
+
+function renderProviderSwitcher() {
+  $$('.provider-button').forEach((button) => {
+    const provider = getProviderMeta(button.dataset.provider);
+    if (!provider) return;
+    const detail = button.querySelector('small');
+    if (detail) {
+      const location = provider.kind === 'local' ? '本地' : '云端';
+      detail.textContent = location;
+    }
+  });
+}
+
+function setProvider(providerId, options = {}) {
+  const provider = getProviderMeta(providerId);
+  if (!provider) return;
+  state.provider = provider.id;
+  renderProviderVoiceOptions(provider);
+  elements.gptReferenceTextRow.classList.toggle('hidden', provider.id !== 'gpt-sovits');
+  updateIndexEmotionControls();
+  if (provider.id === 'gpt-sovits' && !elements.gptReferenceText.value) {
+    elements.gptReferenceText.value = state.settings?.gptSovitsReferenceText || '';
+  }
+  $$('.provider-button').forEach((button) => {
+    const active = button.dataset.provider === provider.id;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', String(active));
+    button.tabIndex = active ? 0 : -1;
+  });
+
+  $$('.mode-button').forEach((button) => {
+    const supported = Boolean(provider.capabilities?.[button.dataset.mode]);
+    button.classList.toggle('is-unsupported', !supported);
+    button.setAttribute('aria-disabled', String(!supported));
+  });
+
+  if (!provider.capabilities?.[state.mode]) {
+    const fallback = ['preset', 'clone', 'design'].find((mode) => provider.capabilities?.[mode]);
+    if (fallback) setMode(fallback);
+  } else {
+    setMode(state.mode);
+  }
+
+  const local = provider.kind === 'local';
+  elements.providerStatusBadge.textContent = local ? '本地服务' : '云端 · 可能计费';
+  elements.providerStatusBadge.className = 'result-badge ready';
+  elements.providerStatusDetail.textContent = provider.label;
+
+  if (!provider.available && !options.silent) {
+    showToast('当前版本暂不支持 ' + provider.label + '。', true);
+  }
+  refreshConnectionStatus();
+}
+
+function renderProviderVoiceOptions(provider) {
+  if (!elements.voiceSelect) return;
+  elements.voiceSelect.replaceChildren();
+  if (provider.id === 'mimo') {
+    for (const [value, label] of MIMO_VOICES) elements.voiceSelect.add(new Option(label, value));
+    elements.voiceSelectLabel.textContent = 'MiMo 预置音色';
+    elements.voicePanelHelper.textContent = MIMO_VOICES.length + ' 个官方选项';
+    return;
+  }
+  const voiceId = state.settings?.volcVoiceType || 'BV001_streaming';
+  elements.voiceSelect.add(new Option('设置中的音色 · ' + voiceId, 'volc-default'));
+  elements.voiceSelectLabel.textContent = '火山引擎音色';
+  elements.voicePanelHelper.textContent = '使用设置中的 voice_type';
+}
+
+function setSettingsProvider(providerId) {
+  if (!getProviderMeta(providerId)) return;
+  state.settingsProvider = providerId;
+  $$('.settings-provider-tab').forEach((button) => {
+    const active = button.dataset.settingsProvider === providerId;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', String(active));
+  });
+  $$('[data-settings-provider-panel]').forEach((panel) => {
+    panel.classList.toggle('hidden', panel.dataset.settingsProviderPanel !== providerId);
+  });
+  elements.settingsMessage.className = 'settings-message';
+  elements.settingsMessage.textContent = providerId === 'mimo'
+    ? '只保存设置不会调用 API；连接测试会先确认，并可能计入 MiMo Token。'
+    : providerId === 'volcengine'
+      ? '只保存设置不会调用 API；火山引擎测试会合成“连接测试”，可能产生少量费用。'
+      : '本地连接测试不会调用云端模型，也不会消耗 MiMo 或火山引擎额度。';
+  refreshConnectionStatus();
+}
+
+function updateIndexEmotionControls() {
+  if (!elements.indexEmotionVectorRow) return;
+  const showVector = state.provider === 'index-tts2'
+    && elements.indexTts2EmotionMode?.value === 'vector';
+  elements.indexEmotionVectorRow.classList.toggle('hidden', !showVector);
 }
 
 function updateCharacterCount() {
@@ -465,7 +643,12 @@ function fileToBase64(file) {
 
 async function generateAudio() {
   if (state.currentRequestId) return;
-  if (!state.settings?.apiKey) {
+  const provider = getProviderMeta();
+  if (!provider?.available) {
+    showToast((provider?.label || '当前语音引擎') + ' 尚未完成接入，请先使用 MiMo。', true);
+    return;
+  }
+  if (state.provider === 'mimo' && !state.settings?.apiKey) {
     showToast('请先打开设置并填写 API Key。', true);
     openSettings();
     return;
@@ -492,7 +675,7 @@ async function generateAudio() {
   const requestId = crypto.randomUUID();
   state.currentRequestId = requestId;
   setGenerating(true);
-  setStatus('正在生成语音', MODE_META[state.mode].status, 'working');
+  setStatus('正在生成语音', getProviderModeStatus(), 'working');
   elements.resultBadge.textContent = '生成中';
   elements.resultBadge.className = 'result-badge idle';
   startWaveformAnimation();
@@ -506,16 +689,19 @@ async function generateAudio() {
         mimeType: getSampleMime(state.sampleFile),
         dataBase64: await fileToBase64(state.sampleFile),
       };
-      setStatus('正在生成语音', MODE_META[state.mode].status, 'working');
+      setStatus('正在生成语音', getProviderModeStatus(), 'working');
     }
 
     const result = await window.mytApp.tts.generate({
       requestId,
+      provider: state.provider,
       mode: state.mode,
       text,
       style: state.mode === 'design' ? '' : getStylePrompt(),
       voice: elements.voiceSelect.value,
       voiceDesign: elements.voiceDesign.value.trim(),
+      referenceText: elements.gptReferenceText.value.trim(),
+      emotionVector: $$('[data-emotion-index]').map((input) => Math.min(1, Math.max(0, Number(input.value) || 0))),
       sample,
     });
     await loadGeneratedAudio(result.audio, result.historyEntry?.filePath || '');
@@ -1007,6 +1193,7 @@ function renderHistory(summary) {
       : entry.mode === 'design' ? '音色设计' : '音色复刻';
     [
       formatHistoryDate(entry.createdAt),
+      getProviderLabel(entry.provider),
       modeText,
       formatTime(entry.duration || 0),
       formatBytes(entry.bytes || 0),
@@ -1044,6 +1231,7 @@ function createHistoryButton(label, className, handler) {
 async function playHistoryEntry(entry) {
   try {
     const result = await window.mytApp.history.getAudio(entry.id);
+    setProvider(entry.provider || 'mimo', { silent: true });
     setMode(entry.mode);
     await loadGeneratedAudio(result.audio, result.filePath);
     elements.resultBadge.textContent = '历史记录';
@@ -1056,6 +1244,7 @@ async function playHistoryEntry(entry) {
 }
 
 function reuseHistoryEntry(entry) {
+  setProvider(entry.provider || 'mimo', { silent: true });
   setMode(entry.mode);
   elements.scriptText.value = entry.text || '';
   elements.styleText.value = entry.style || '';
@@ -1274,10 +1463,9 @@ async function finishOnboarding() {
 }
 
 function openSettings() {
+  state.settingsProvider = state.provider;
   populateSettingsForm();
   refreshDataLocationInfo();
-  elements.settingsMessage.className = 'settings-message';
-  elements.settingsMessage.textContent = '只保存不会调用 MiMo；连接测试会先征求确认，并可能计入 Token 或额度。';
   showPage('settings');
 }
 
@@ -1378,6 +1566,27 @@ function populateSettingsForm() {
   elements.apiKey.value = settings.apiKey || '';
   elements.authMode.value = settings.authMode || 'api-key';
   elements.timeoutSeconds.value = String(settings.timeoutSeconds || 180);
+  elements.volcBaseUrl.value = settings.volcBaseUrl || 'https://openspeech.bytedance.com/api/v1/tts';
+  elements.volcAppId.value = settings.volcAppId || '';
+  elements.volcAccessToken.value = settings.volcAccessToken || '';
+  elements.volcCluster.value = settings.volcCluster || 'volcano_tts';
+  elements.volcVoiceType.value = settings.volcVoiceType || 'BV001_streaming';
+  elements.volcSpeedRatio.value = String(settings.volcSpeedRatio || 1);
+  elements.volcTimeoutSeconds.value = String(settings.volcTimeoutSeconds || 180);
+  elements.gptSovitsBaseUrl.value = settings.gptSovitsBaseUrl || 'http://127.0.0.1:9880';
+  elements.gptSovitsApiKey.value = settings.gptSovitsApiKey || '';
+  elements.gptSovitsTargetLanguage.value = settings.gptSovitsTargetLanguage || 'zh';
+  elements.gptSovitsReferenceLanguage.value = settings.gptSovitsReferenceLanguage || 'zh';
+  elements.gptSovitsReferenceText.value = settings.gptSovitsReferenceText || '';
+  elements.gptReferenceText.value = settings.gptSovitsReferenceText || '';
+  elements.gptSovitsTextSplitMethod.value = settings.gptSovitsTextSplitMethod || 'cut5';
+  elements.gptSovitsTimeoutSeconds.value = String(settings.gptSovitsTimeoutSeconds || 180);
+  elements.indexTts2BaseUrl.value = settings.indexTts2BaseUrl || 'http://127.0.0.1:9872';
+  elements.indexTts2ApiKey.value = settings.indexTts2ApiKey || '';
+  elements.indexTts2EmotionMode.value = settings.indexTts2EmotionMode || 'text';
+  elements.indexTts2EmotionAlpha.value = String(settings.indexTts2EmotionAlpha ?? 0.6);
+  elements.indexTts2UseRandom.checked = Boolean(settings.indexTts2UseRandom);
+  elements.indexTts2TimeoutSeconds.value = String(settings.indexTts2TimeoutSeconds || 600);
   elements.styleOptimizerProvider.value = settings.styleOptimizerProvider || 'disabled';
   elements.styleOptimizerBaseUrl.value = settings.styleOptimizerBaseUrl || 'http://127.0.0.1:8080/v1';
   elements.styleOptimizerModel.value = settings.styleOptimizerModel || 'gpt-3.5-turbo';
@@ -1385,6 +1594,8 @@ function populateSettingsForm() {
   elements.styleOptimizerTimeoutSeconds.value = String(settings.styleOptimizerTimeoutSeconds || 120);
   elements.themeSelect.value = settings.theme || 'system';
   updateStyleOptimizerUi();
+  updateIndexEmotionControls();
+  setSettingsProvider(state.settingsProvider);
 }
 
 function collectSettingsForm() {
@@ -1394,6 +1605,26 @@ function collectSettingsForm() {
     apiKey: elements.apiKey.value.trim(),
     authMode: elements.authMode.value,
     timeoutSeconds: Number(elements.timeoutSeconds.value),
+    volcBaseUrl: elements.volcBaseUrl.value.trim(),
+    volcAppId: elements.volcAppId.value.trim(),
+    volcAccessToken: elements.volcAccessToken.value.trim(),
+    volcCluster: elements.volcCluster.value.trim(),
+    volcVoiceType: elements.volcVoiceType.value.trim(),
+    volcSpeedRatio: Number(elements.volcSpeedRatio.value),
+    volcTimeoutSeconds: Number(elements.volcTimeoutSeconds.value),
+    gptSovitsBaseUrl: elements.gptSovitsBaseUrl.value.trim(),
+    gptSovitsApiKey: elements.gptSovitsApiKey.value.trim(),
+    gptSovitsTargetLanguage: elements.gptSovitsTargetLanguage.value.trim(),
+    gptSovitsReferenceLanguage: elements.gptSovitsReferenceLanguage.value.trim(),
+    gptSovitsReferenceText: elements.gptSovitsReferenceText.value.trim(),
+    gptSovitsTextSplitMethod: elements.gptSovitsTextSplitMethod.value,
+    gptSovitsTimeoutSeconds: Number(elements.gptSovitsTimeoutSeconds.value),
+    indexTts2BaseUrl: elements.indexTts2BaseUrl.value.trim(),
+    indexTts2ApiKey: elements.indexTts2ApiKey.value.trim(),
+    indexTts2EmotionMode: elements.indexTts2EmotionMode.value,
+    indexTts2EmotionAlpha: Number(elements.indexTts2EmotionAlpha.value),
+    indexTts2UseRandom: elements.indexTts2UseRandom.checked,
+    indexTts2TimeoutSeconds: Number(elements.indexTts2TimeoutSeconds.value),
     styleOptimizerProvider: elements.styleOptimizerProvider.value,
     styleOptimizerBaseUrl: elements.styleOptimizerBaseUrl.value.trim(),
     styleOptimizerModel: elements.styleOptimizerModel.value.trim(),
@@ -1406,6 +1637,10 @@ function collectSettingsForm() {
 async function saveSettings() {
   try {
     state.settings = await window.mytApp.settings.save(collectSettingsForm());
+    renderProviderVoiceOptions(getProviderMeta(state.provider));
+    if (state.provider === 'gpt-sovits') {
+      elements.gptReferenceText.value = state.settings.gptSovitsReferenceText || '';
+    }
     applyTheme(state.settings.theme);
     refreshConnectionStatus();
     updateStyleOptimizerUi();
@@ -1421,31 +1656,44 @@ async function saveSettings() {
 }
 
 async function testConnection() {
-  const confirmed = await window.mytApp.settings.confirmTest();
-  if (!confirmed) {
-    elements.settingsMessage.className = 'settings-message';
-    elements.settingsMessage.textContent = '已取消测试，没有向 MiMo 发送请求，也没有消耗 Token。';
-    return;
+  const provider = getProviderMeta(state.settingsProvider);
+  if (provider?.kind === 'cloud') {
+    const confirmed = await window.mytApp.settings.confirmTest(state.settingsProvider);
+    if (!confirmed) {
+      elements.settingsMessage.className = 'settings-message';
+      elements.settingsMessage.textContent = '已取消测试，没有发送云端请求。';
+      return;
+    }
   }
   const button = $('#testConnection');
   button.disabled = true;
   button.textContent = '正在测试';
   elements.settingsMessage.className = 'settings-message';
-  elements.settingsMessage.textContent = '正在连接 MiMo API。';
+  elements.settingsMessage.textContent = '正在连接 ' + (provider?.label || '语音引擎') + '。';
   try {
     const saved = await saveSettings();
     if (!saved) return;
-    const result = await window.mytApp.settings.test();
+    const result = await window.mytApp.providers.test(state.settingsProvider);
     if (!result.ok) throw new Error('服务返回内容异常。');
     elements.settingsMessage.className = 'settings-message success';
-    elements.settingsMessage.textContent = '连接成功，API Key 和 Base URL 可用。';
+    elements.settingsMessage.textContent = '连接成功，' + (provider?.label || '语音引擎') + ' 已响应。';
   } catch (error) {
     elements.settingsMessage.className = 'settings-message error';
     elements.settingsMessage.textContent = error.message;
   } finally {
     button.disabled = false;
-    button.textContent = '保存并测试（调用 API）';
+    button.textContent = '保存并测试连接';
   }
+}
+
+function togglePasswordField(button) {
+  const input = document.getElementById(button.dataset.passwordTarget);
+  if (!input) return;
+  const show = input.type === 'password';
+  input.type = show ? 'text' : 'password';
+  button.classList.toggle('is-visible', show);
+  button.setAttribute('aria-label', show ? '隐藏密钥' : '显示密钥');
+  button.title = show ? '隐藏密钥' : '显示密钥';
 }
 
 function toggleApiKeyVisibility() {
@@ -1488,12 +1736,24 @@ function updateStyleOptimizerUi() {
 }
 
 function refreshConnectionStatus() {
-  const ready = Boolean(state.settings?.apiKey && state.settings?.baseUrl);
+  const providerId = state.provider || 'mimo';
+  const settingsProviderId = state.settingsProvider || 'mimo';
+  const readiness = {
+    mimo: Boolean(state.settings?.apiKey && state.settings?.baseUrl),
+    volcengine: Boolean(state.settings?.volcAppId && state.settings?.volcAccessToken && state.settings?.volcVoiceType),
+    'gpt-sovits': Boolean(state.settings?.gptSovitsBaseUrl),
+    'index-tts2': Boolean(state.settings?.indexTts2BaseUrl),
+  };
+  const ready = readiness[providerId];
+  const label = getProviderLabel(providerId);
   elements.connectionDot.classList.toggle('ready', ready);
-  elements.connectionTitle.textContent = ready ? 'MiMo 已配置' : '尚未配置';
-  elements.connectionDetail.textContent = ready ? (state.settings.serviceType === 'token-plan' ? 'Token Plan' : 'API 可生成') : '添加 MiMo API Key';
-  elements.settingsConnectionBadge.textContent = ready ? '已配置' : '未配置';
-  elements.settingsConnectionBadge.className = ready ? 'result-badge ready' : 'result-badge idle';
+  elements.connectionTitle.textContent = ready ? label + ' 已配置' : label + ' 未配置';
+  elements.connectionDetail.textContent = ready
+    ? (getProviderMeta(providerId)?.kind === 'local' ? '等待本地服务连接' : 'API 可生成')
+    : '请在设置中补齐连接信息';
+  const settingsReady = readiness[settingsProviderId];
+  elements.settingsConnectionBadge.textContent = settingsReady ? '已配置' : '未配置';
+  elements.settingsConnectionBadge.className = settingsReady ? 'result-badge ready' : 'result-badge idle';
 }
 
 function applyTheme(theme) {

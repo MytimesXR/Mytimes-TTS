@@ -10,7 +10,7 @@
 <body>
   <div class="titlebar">
     <div class="titlebar-name">
-      <span class="mini-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <img class="titlebar-logo" src="../build/icon.png" alt="">
       <span>Mytimes TTS</span>
     </div>
     <div class="window-actions">
@@ -23,12 +23,7 @@
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand-block">
-        <div class="brand-mark" aria-hidden="true">
-          <span class="bar bar-one"></span>
-          <span class="bar bar-two"></span>
-          <span class="bar bar-three"></span>
-          <span class="bar bar-four"></span>
-        </div>
+        <img class="brand-logo" src="../build/icon.png" alt="Mytimes TTS">
         <div>
           <strong>Mytimes</strong>
           <small>VOICE STUDIO</small>
@@ -75,6 +70,37 @@
         <button id="headerSettings" class="icon-button" type="button" aria-label="打开设置" title="设置"><svg class="fluent-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.86 2.86-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21H9.6v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.86-2.86.06-.06A1.7 1.7 0 0 0 4.2 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H2.4V9.6h.1A1.7 1.7 0 0 0 4.2 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06L6.66 3.8l.06.06A1.7 1.7 0 0 0 8.6 4.2a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V2.4h4v.1a1.7 1.7 0 0 0 1 1.7 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.86 2.86-.06.06A1.7 1.7 0 0 0 19.4 8.6a1.7 1.7 0 0 0 .6 1 1.7 1.7 0 0 0 1.1.4h.1v4h-.1a1.7 1.7 0 0 0-1.7 1Z"></path></svg></button>
       </header>
 
+      <section class="engine-panel" aria-labelledby="engineSwitcherTitle">
+        <div class="engine-panel-heading">
+          <div>
+            <span class="step-label">VOICE ENGINE</span>
+            <h2 id="engineSwitcherTitle">选择语音引擎</h2>
+          </div>
+          <div class="engine-current-status">
+            <span id="providerStatusBadge" class="result-badge ready">云端 · 可能计费</span>
+            <small id="providerStatusDetail">Xiaomi MiMo</small>
+          </div>
+        </div>
+        <div id="providerSwitcher" class="provider-switcher" role="tablist" aria-label="语音引擎">
+          <button class="provider-button active" type="button" role="tab" aria-selected="true" data-provider="mimo">
+            <span class="provider-mark cloud">MI</span>
+            <span><strong>MiMo</strong><small>云端</small></span>
+          </button>
+          <button class="provider-button" type="button" role="tab" aria-selected="false" data-provider="volcengine">
+            <span class="provider-mark cloud">火</span>
+            <span><strong>火山引擎</strong><small>云端</small></span>
+          </button>
+          <button class="provider-button" type="button" role="tab" aria-selected="false" data-provider="gpt-sovits">
+            <span class="provider-mark local">GS</span>
+            <span><strong>GPT-SoVITS</strong><small>本地</small></span>
+          </button>
+          <button class="provider-button" type="button" role="tab" aria-selected="false" data-provider="index-tts2">
+            <span class="provider-mark local">IX</span>
+            <span><strong>IndexTTS2</strong><small>本地</small></span>
+          </button>
+        </div>
+      </section>
+
       <div class="mode-switch" role="tablist" aria-label="生成模式">
         <button class="mode-button active" data-mode="preset" role="tab" aria-selected="true">
           <span class="mode-number">01</span>
@@ -95,9 +121,9 @@
           <section id="presetPanel" class="panel mode-panel">
             <div class="section-heading">
               <div><span class="step-label">VOICE</span><h2>选择音色</h2></div>
-              <span class="helper">9 个官方选项</span>
+              <span id="voicePanelHelper" class="helper">9 个官方选项</span>
             </div>
-            <label class="field-label" for="voiceSelect">MiMo 预置音色</label>
+            <label id="voiceSelectLabel" class="field-label" for="voiceSelect">MiMo 预置音色</label>
             <div class="select-wrap">
               <select id="voiceSelect">
                 <option value="mimo_default">MiMo 默认 · 自动匹配集群</option>
@@ -159,6 +185,25 @@
                 <input id="sampleSeek" class="seek-bar" type="range" min="0" max="1000" value="0" aria-label="参考音频播放进度">
               </div>
             </div>
+            <label id="gptReferenceTextRow" class="field-block hidden" for="gptReferenceText">
+              <span class="field-label">参考音频原文</span>
+              <textarea id="gptReferenceText" class="small-textarea" rows="3" placeholder="逐字填写参考音频中说的话"></textarea>
+              <small>GPT-SoVITS 需要原文与参考音频严格对应。</small>
+            </label>
+            <div id="indexEmotionVectorRow" class="field-block hidden">
+              <span class="field-label">IndexTTS2 八维情绪</span>
+              <div class="emotion-vector-grid">
+                <label><span>快乐</span><input type="number" min="0" max="1" step="0.1" value="0" data-emotion-index="0"></label>
+                <label><span>愤怒</span><input type="number" min="0" max="1" step="0.1" value="0" data-emotion-index="1"></label>
+                <label><span>悲伤</span><input type="number" min="0" max="1" step="0.1" value="0" data-emotion-index="2"></label>
+                <label><span>恐惧</span><input type="number" min="0" max="1" step="0.1" value="0" data-emotion-index="3"></label>
+                <label><span>厌恶</span><input type="number" min="0" max="1" step="0.1" value="0" data-emotion-index="4"></label>
+                <label><span>低落</span><input type="number" min="0" max="1" step="0.1" value="0" data-emotion-index="5"></label>
+                <label><span>惊讶</span><input type="number" min="0" max="1" step="0.1" value="0" data-emotion-index="6"></label>
+                <label><span>平静</span><input type="number" min="0" max="1" step="0.1" value="0" data-emotion-index="7"></label>
+              </div>
+              <small>顺序与 IndexTTS2 官方八维向量一致，建议总强度不要过高。</small>
+            </div>
             <label class="consent-row"><input id="voiceConsent" type="checkbox"><span>我确认拥有该声音的使用授权</span></label>
           </section>
 
@@ -174,8 +219,9 @@
             <textarea id="styleText" class="small-textarea" maxlength="600" placeholder="例如：用温暖亲切的语气讲述，语速适中，重要信息稍作停顿。"></textarea>
             <div class="inline-actions">
               <button id="organizeStyle" class="secondary-button compact" type="button">规则整理</button>
-              <button id="optimizeStyle" class="spark-button compact" type="button"><span>✦</span> AI 润色风格</button>
+              <button id="optimizeStyle" class="spark-button compact" type="button"><span>✦</span> 独立 LLM 润色</button>
             </div>
+            <small class="optimizer-note">规则整理完全本地；LLM 润色只使用设置页单独配置的服务，绝不自动调用 MiMo Key。</small>
             <div id="optimizeReview" class="optimize-review hidden">
               <small>AI 建议</small>
               <p id="optimizedStyleText"></p>
@@ -256,7 +302,7 @@
           <div>
             <p class="eyebrow">PREFERENCES</p>
             <h1>设置</h1>
-            <p class="page-description">管理 MiMo 连接、数据目录、密钥安全和应用外观。</p>
+            <p class="page-description">管理语音引擎、数据目录、密钥安全和应用外观。</p>
           </div>
           <button id="backToGenerator" class="secondary-button" type="button">返回生成</button>
         </header>
@@ -264,9 +310,16 @@
         <div class="settings-page-grid">
           <section class="panel settings-main-panel">
             <div class="section-heading">
-              <div><span class="step-label">API CONNECTION</span><h2>MiMo 连接</h2></div>
+              <div><span class="step-label">TTS ENGINES</span><h2>语音引擎连接</h2></div>
               <span id="settingsConnectionBadge" class="result-badge idle">未验证</span>
             </div>
+            <div class="settings-provider-tabs" role="tablist" aria-label="选择要配置的语音引擎">
+              <button class="settings-provider-tab active" type="button" data-settings-provider="mimo">MiMo</button>
+              <button class="settings-provider-tab" type="button" data-settings-provider="volcengine">火山引擎</button>
+              <button class="settings-provider-tab" type="button" data-settings-provider="gpt-sovits">GPT-SoVITS</button>
+              <button class="settings-provider-tab" type="button" data-settings-provider="index-tts2">IndexTTS2</button>
+            </div>
+            <div class="settings-provider-panel" data-settings-provider-panel="mimo">
             <div class="settings-form">
               <label><span>服务类型</span><select id="serviceType"><option value="standard">MiMo 标准 API</option><option value="token-plan">MiMo Token Plan</option><option value="custom">自定义兼容服务</option></select></label>
               <label><span>Base URL</span><input id="baseUrl" type="url" spellcheck="false" placeholder="https://api.xiaomimimo.com/v1"><small>填写到 /v1 即可，也兼容完整 /chat/completions 地址。</small></label>
@@ -285,11 +338,78 @@
                 <label><span>认证方式</span><select id="authMode"><option value="api-key">api-key</option><option value="bearer">Bearer Token</option></select></label>
                 <label><span>请求超时</span><select id="timeoutSeconds"><option value="60">60 秒</option><option value="180">180 秒</option><option value="300">300 秒</option><option value="600">600 秒</option></select></label>
               </div>
-              <div id="settingsMessage" class="settings-message">测试连接会发起一次极小的文本模型请求。</div>
-              <div class="settings-inline-actions">
-                <button id="testConnection" class="secondary-button" type="button">保存并测试</button>
-                <button id="saveSettings" class="generate-button" type="button"><span>保存设置</span></button>
+            </div>
+            </div>
+
+            <div class="settings-provider-panel hidden" data-settings-provider-panel="volcengine">
+              <div class="settings-form">
+                <label><span>V1 HTTP 地址</span><input id="volcBaseUrl" type="url" spellcheck="false" placeholder="https://openspeech.bytedance.com/api/v1/tts"><small>当前使用兼容性较好的 V1 HTTP；2.0 新音色后续升级到 V3。</small></label>
+                <div class="settings-grid">
+                  <label><span>App ID</span><input id="volcAppId" type="text" spellcheck="false" placeholder="控制台应用 ID"></label>
+                  <label><span>Cluster</span><input id="volcCluster" type="text" spellcheck="false" placeholder="volcano_tts"></label>
+                </div>
+                <label><span>Access Token</span><div class="password-wrap"><input id="volcAccessToken" type="password" autocomplete="off" placeholder="控制台 Access Token"><button class="password-toggle" type="button" data-password-target="volcAccessToken" aria-label="显示 Access Token" title="显示 Access Token"><svg class="eye-icon eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.6-6 9.5-6 9.5 6 9.5 6-3.6 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.75"></circle></svg><svg class="eye-icon eye-closed" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4 20 20"></path><path d="M3 9s3.2-4 9-4 9 7 9 7a17 17 0 0 1-3 3.4M6 16.2A13 13 0 0 1 3 12"></path></svg></button></div><small>仅保存在当前 Windows 用户的 DPAPI 加密文件中。</small></label>
+                <label><span>默认音色 ID</span><input id="volcVoiceType" type="text" spellcheck="false" placeholder="BV001_streaming"><small>填写公司账号已经开通或购买的 voice_type。</small></label>
+                <div class="settings-grid">
+                  <label><span>语速</span><input id="volcSpeedRatio" type="number" min="0.2" max="2" step="0.1" value="1"></label>
+                  <label><span>请求超时</span><select id="volcTimeoutSeconds"><option value="60">60 秒</option><option value="180">180 秒</option><option value="300">300 秒</option><option value="600">600 秒</option></select></label>
+                </div>
               </div>
+            </div>
+
+            <div class="settings-provider-panel hidden" data-settings-provider-panel="gpt-sovits">
+              <div class="settings-form">
+                <label><span>本地 API 地址</span><input id="gptSovitsBaseUrl" type="url" spellcheck="false" placeholder="http://127.0.0.1:9880"><small>兼容 GPT-SoVITS 官方 api_v2.py 的 /tts 接口。</small></label>
+                <label><span>局域网鉴权 Key（可选）</span><div class="password-wrap"><input id="gptSovitsApiKey" type="password" autocomplete="off" placeholder="仅本机使用通常留空"><button class="password-toggle" type="button" data-password-target="gptSovitsApiKey" aria-label="显示本地 Key" title="显示本地 Key"><svg class="eye-icon eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.6-6 9.5-6 9.5 6 9.5 6-3.6 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.75"></circle></svg><svg class="eye-icon eye-closed" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4 20 20"></path><path d="M3 9s3.2-4 9-4 9 7 9 7a17 17 0 0 1-3 3.4M6 16.2A13 13 0 0 1 3 12"></path></svg></button></div></label>
+                <div class="settings-grid">
+                  <label><span>目标语言</span><input id="gptSovitsTargetLanguage" type="text" spellcheck="false" value="zh"></label>
+                  <label><span>参考音频语言</span><input id="gptSovitsReferenceLanguage" type="text" spellcheck="false" value="zh"></label>
+                </div>
+                <label><span>参考音频原文</span><textarea id="gptSovitsReferenceText" rows="3" placeholder="逐字填写参考音频中说的话"></textarea><small>参考音频变化时，需要同步修改原文。</small></label>
+                <div class="settings-grid">
+                  <label><span>文本切分</span><select id="gptSovitsTextSplitMethod"><option value="cut0">不切分</option><option value="cut1">四句一切</option><option value="cut2">约 50 字一切</option><option value="cut3">按中文句号</option><option value="cut4">按英文句号</option><option value="cut5">按标点切分</option></select></label>
+                  <label><span>请求超时</span><select id="gptSovitsTimeoutSeconds"><option value="60">60 秒</option><option value="180">180 秒</option><option value="300">300 秒</option><option value="600">600 秒</option></select></label>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-provider-panel hidden" data-settings-provider-panel="index-tts2">
+              <div class="settings-form">
+                <label><span>本地网关地址</span><input id="indexTts2BaseUrl" type="url" spellcheck="false" placeholder="http://127.0.0.1:9872"><small>使用项目 local-gateway 中的启动脚本连接官方 IndexTTS2。</small></label>
+                <label><span>局域网鉴权 Key（可选）</span><div class="password-wrap"><input id="indexTts2ApiKey" type="password" autocomplete="off" placeholder="仅本机使用通常留空"><button class="password-toggle" type="button" data-password-target="indexTts2ApiKey" aria-label="显示本地 Key" title="显示本地 Key"><svg class="eye-icon eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.6-6 9.5-6 9.5 6 9.5 6-3.6 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.75"></circle></svg><svg class="eye-icon eye-closed" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4 20 20"></path><path d="M3 9s3.2-4 9-4 9 7 9 7a17 17 0 0 1-3 3.4M6 16.2A13 13 0 0 1 3 12"></path></svg></button></div></label>
+                <div class="settings-grid">
+                  <label><span>情绪来源</span><select id="indexTts2EmotionMode"><option value="text">风格文字</option><option value="vector">八维向量</option></select></label>
+                  <label><span>情绪强度</span><input id="indexTts2EmotionAlpha" type="number" min="0" max="1" step="0.1" value="0.6"></label>
+                </div>
+                <div class="settings-grid">
+                  <label class="checkbox-row"><input id="indexTts2UseRandom" type="checkbox"><span>随机采样（会降低复刻相似度）</span></label>
+                  <label><span>请求超时</span><select id="indexTts2TimeoutSeconds"><option value="180">180 秒</option><option value="600">600 秒</option><option value="1200">1200 秒</option><option value="1800">1800 秒</option></select></label>
+                </div>
+              </div>
+            </div>
+
+            <div id="settingsMessage" class="settings-message">只保存设置不会调用 API。</div>
+            <div class="settings-inline-actions">
+              <button id="testConnection" class="secondary-button" type="button">保存并测试连接</button>
+              <button id="saveSettings" class="generate-button" type="button"><span>保存设置</span></button>
+            </div>
+            <div class="storage-divider" aria-hidden="true"></div>
+            <div class="section-heading">
+              <div><span class="step-label">STYLE OPTIMIZER</span><h2>独立润色服务</h2></div>
+              <span id="styleOptimizerBadge" class="result-badge idle">未启用</span>
+            </div>
+            <div class="settings-form">
+              <label><span>润色方式</span><select id="styleOptimizerProvider"><option value="disabled">仅规则整理（免费，不调用模型）</option><option value="openai-compatible">llama.cpp / OpenAI 兼容接口</option></select></label>
+              <div id="styleOptimizerFields" class="settings-form">
+                <label><span>独立 Base URL</span><input id="styleOptimizerBaseUrl" type="url" spellcheck="false" placeholder="http://127.0.0.1:8080/v1"><small>llama-server 默认可使用 http://127.0.0.1:8080/v1。</small></label>
+                <label><span>模型名</span><input id="styleOptimizerModel" type="text" spellcheck="false" placeholder="gpt-3.5-turbo"><small>单模型 llama.cpp 可保留默认值；路由模式请填写模型 ID 或 --alias。</small></label>
+                <label><span>独立 API Key（可选）</span><div class="password-wrap"><input id="styleOptimizerApiKey" type="password" autocomplete="off" placeholder="本地 llama.cpp 通常留空"><button id="toggleStyleApiKey" class="password-toggle" type="button" aria-label="显示润色 API Key" title="显示润色 API Key">
+  <svg class="eye-icon eye-open" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.6-6 9.5-6 9.5 6 9.5 6-3.6 6-9.5 6-9.5-6-9.5-6Z"></path><circle cx="12" cy="12" r="2.75"></circle></svg>
+  <svg class="eye-icon eye-closed" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.5 8.4C2.8 9.3 2.5 10 2.5 10s3.6 6 9.5 6c1.5 0 2.8-.4 3.9-.9"></path><path d="M20.5 13.6C21.2 12.7 21.5 12 21.5 12S17.9 6 12 6c-1.5 0-2.8.4-3.9.9"></path><path d="m4 4 16 16"></path></svg>
+</button></div><small>与 MiMo TTS Key 完全分开，并按当前电脑和 Windows 用户加密。</small></label>
+                <label><span>润色超时</span><select id="styleOptimizerTimeoutSeconds"><option value="60">60 秒</option><option value="120">120 秒</option><option value="300">300 秒</option><option value="600">600 秒</option></select></label>
+              </div>
+              <div id="styleOptimizerMessage" class="settings-message">默认关闭。配置本地 llama.cpp 后，润色不会消耗 Xiaomi MiMo Token。</div>
             </div>
           </section>
 
@@ -327,6 +447,12 @@
               <div><span class="step-label">HISTORY</span><h2>生成历史</h2></div>
               <p id="storageSummary">正在读取本地记录。</p>
               <button id="openHistoryFromSettings" class="text-button" type="button">查看生成历史 →</button>
+              <div class="storage-divider" aria-hidden="true"></div>
+              <div><span class="step-label">DEMO</span><h2>首次引导</h2></div>
+              <p>演示时可从欢迎页重新开始，不会删除数据目录、API Key、设置或历史。</p>
+              <div class="storage-actions">
+                <button id="resetOnboarding" class="secondary-button" type="button">重新演示首次引导</button>
+              </div>
             </section>
           </aside>
         </div>
@@ -351,7 +477,7 @@
         <h1 id="onboardingTitle">几步完成首次设置</h1>
         <p class="onboarding-lead">Mytimes TTS 将文字转换为语音，并把设置、历史和音频保存在你选择的数据目录。</p>
         <div class="onboarding-feature-grid">
-          <article><span>01</span><h2>填写正文</h2><p>输入需要朗读的内容，AI 风格润色不会修改正文。</p></article>
+          <article><span>01</span><h2>填写正文</h2><p>输入需要朗读的内容，规则整理和独立 LLM 润色都不会修改正文。</p></article>
           <article><span>02</span><h2>选择声音</h2><p>使用预置音色、描述式音色设计或已授权的声音复刻。</p></article>
           <article><span>03</span><h2>生成与保存</h2><p>试听波形、拖动定位，并保存 WAV 或查看本地历史。</p></article>
         </div>

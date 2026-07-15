@@ -24,7 +24,7 @@ npm run check:packaged
 
 ## API Key 的处理
 
-源码和安装包不提供默认 Key。用户在设置页输入后，应用通过 Electron `safeStorage` 使用 Windows DPAPI 加密，并保存在当前数据目录的 `secrets/` 子目录。密钥文件名按电脑和 Windows 用户隔离，因此多台电脑共用 NAS 数据目录时不会相互覆盖 Key。
+源码和安装包不提供默认 Key。用户在设置页输入 MiMo Key 或可选的独立润色 Key 后，应用通过 Electron `safeStorage` 使用 Windows DPAPI 加密，并保存在当前数据目录的 `secrets/` 子目录。密钥文件名按电脑和 Windows 用户隔离，因此多台电脑共用 NAS 数据目录时不会相互覆盖 Key。独立润色默认关闭，且程序不会把 MiMo Key 当作润色 Key 使用。
 
 本机加密不能代替最小权限、额度限制和 Key 轮换。如需统一提供服务，应让客户端访问受控后端代理，不能把共享 Key 写进应用。
 

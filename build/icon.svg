@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Mytimes TTS">
-  <rect x="11.5" y="12.5" width="233" height="232" rx="54" fill="#111722" stroke="#303c4f" stroke-width="5"/>
+  <rect x="11.5" y="12.5" width="233" height="232" rx="54" fill="#111722"/>
   <rect x="65" y="102" width="20" height="53" rx="10" fill="#6c6ef4"/>
   <rect x="94" y="68" width="21" height="121" rx="10.5" fill="#8f91ff"/>
   <rect x="124" y="85" width="21" height="88" rx="10.5" fill="#63ccd7"/>
